@@ -2,9 +2,9 @@
 
 from setuptools import setup
 
-setup(name='aardbei',
+setup(name='liar',
       version='0.0.1',
-      description='LR scripts voor de zaak AARDBEI',
+      description='scripts for calculating likelihood ratios',
       packages=['liar'],
       setup_requires=['nose'],
       test_suite='nose.collector'
