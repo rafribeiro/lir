@@ -171,19 +171,21 @@ class generate_data:
 def plot_scheidbaarheid():
     xvalues = np.arange(0, 6, 1)
     generator_args = [ {
-        'class0_train': np.random.normal(loc=0, size=(100, 1)),
-        'class1_train': np.random.normal(loc=d, size=(100, 1)),
-        'class0_calibrate': np.random.normal(loc=0, size=(100, 1)),
-        'class1_calibrate': np.random.normal(loc=d, size=(100, 1)),
-        'class0_test': np.random.normal(loc=0, size=(100, 1)),
-        'class1_test': np.random.normal(loc=d, size=(100, 1)),
+        'class0_train': lambda x: np.random.normal(loc=0, size=(100, 1)),
+        'class1_train': lambda x: np.random.normal(loc=x, size=(100, 1)),
+        'class0_calibrate': lambda x: np.random.normal(loc=0, size=(100, 1)),
+        'class1_calibrate': lambda x: np.random.normal(loc=x, size=(100, 1)),
+        'class0_test': lambda x: np.random.normal(loc=0, size=(100, 1)),
+        'class1_test': lambda x: np.random.normal(loc=x, size=(100, 1)),
         'distribution_mean_delta': d,
+        'repeat': 100,
         } for d in xvalues ]
 
     generators = [
         NormalCllrEvaluator('baseline', 0, 1, 0, 1),
-        ClassifierCllrEvaluator('logit/kde', LogisticRegression(), liar.probability_kde),
         ClassifierCllrEvaluator('logit/fraction', LogisticRegression(), liar.probability_fraction),
+        ClassifierCllrEvaluator('logit/kde', LogisticRegression(), liar.probability_kde),
+        ClassifierCllrEvaluator('logit/gauss', LogisticRegression(), liar.probability_gaussian_mixture),
         ClassifierCllrEvaluator('logit/copy', LogisticRegression(), liar.probability_copy),
     ]
 
@@ -208,8 +210,9 @@ def plot_datasize():
 
     generators = [
         NormalCllrEvaluator('baseline', 0, 1, dx, 1),
-        ClassifierCllrEvaluator('logit/kde', LogisticRegression(), liar.probability_kde),
         ClassifierCllrEvaluator('logit/fraction', LogisticRegression(), liar.probability_fraction),
+        ClassifierCllrEvaluator('logit/kde', LogisticRegression(), liar.probability_kde),
+        ClassifierCllrEvaluator('logit/gauss', LogisticRegression(), liar.probability_gaussian_mixture),
         ClassifierCllrEvaluator('logit/copy', LogisticRegression(), liar.probability_copy),
     ]
 
@@ -258,8 +261,9 @@ def plot_split():
 
     generators = [
         NormalCllrEvaluator('baseline', 0, 1, dx, 1),
-        ClassifierCllrEvaluator('logit/kde', LogisticRegression(), liar.probability_kde),
         ClassifierCllrEvaluator('logit/fraction', LogisticRegression(), liar.probability_fraction),
+        ClassifierCllrEvaluator('logit/kde', LogisticRegression(), liar.probability_kde),
+        ClassifierCllrEvaluator('logit/gauss', LogisticRegression(), liar.probability_gaussian_mixture),
         ClassifierCllrEvaluator('logit/copy', LogisticRegression(), liar.probability_copy),
     ]
 

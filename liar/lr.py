@@ -3,6 +3,7 @@ import math
 
 import numpy as np
 import sklearn
+import sklearn.mixture
 
 
 class NoneAttr:
@@ -87,22 +88,65 @@ class probability_kde(AbstractProbabilityFunction):
     float
         A probability value.
     """
-    def __init__(self, points=None, class_value=None, value_range=None, remove_from_reference_points=None, bandwidth=None, parent=NoneAttr()):
+    def __init__(self, points=None, class_value=None, value_range=None, remove_from_reference_points=None, bandwidth=None, base_value=None, parent=NoneAttr()):
         super().__init__(points, class_value, value_range, remove_from_reference_points, parent)
 
         self.bandwidth = bandwidth if bandwidth is not None else parent.bandwidth
+        self.base_value_param = base_value if base_value is not None else parent.base_value_param
 
         if points is not None:
-            bandwidth = self.bandwidth if self.bandwidth is not None else np.std(points)/4
-            self._kde = sklearn.neighbors.KernelDensity(kernel='gaussian', bandwidth=bandwidth).fit(points)
+            bandwidth = self.bandwidth if self.bandwidth is not None else np.std(points)
+            self._kde = sklearn.neighbors.KernelDensity(kernel='gaussian', bandwidth=bandwidth).fit(np.array(points).reshape(-1,1))
+            self._base_value = self.base_value_param if self.base_value_param is not None else 1. / len(points)
         else:
             self._kde = parent._kde
+            self._base_value = parent._base_value
 
     def clone(self, **kw):
-        return probability_fraction(**kw)
+        return probability_kde(**kw)
 
     def probability(self, point):
-        return np.exp(self._kde.score_samples(np.array(point).reshape(1,1)))[0]
+        p = self._base_value + np.exp(self._kde.score_samples(np.array(point).reshape(1,1)))[0]
+        return p
+
+
+class probability_gaussian_mixture(AbstractProbabilityFunction):
+    """
+    Calculates the probability of the value of `point`, provided it is from the
+    same distribution as `reference_points`. Uses a gaussian mixture model for
+    interpolation.
+
+    Parameters
+    ----------
+    point : float
+        The point of interest for which the probability is calculated.
+    reference_points : list of float
+        Points from the same distribution as `point`.
+    class_value : int
+        ignored
+    value_range : tuple of two floats
+        ignored
+
+    Returns
+    -------
+    float
+        A probability value.
+    """
+    def __init__(self, points=None, class_value=None, value_range=None, remove_from_reference_points=None, parent=NoneAttr()):
+        super().__init__(points, class_value, value_range, remove_from_reference_points, parent)
+
+        if points is not None:
+            self._model = sklearn.mixture.GaussianMixture().fit(np.array(points).reshape(-1,1))
+        else:
+            self._model = parent._model
+
+    def clone(self, **kw):
+        return probability_gaussian_mixture(**kw)
+
+    def probability(self, point):
+        p = np.exp(self._model.score_samples(np.array(point).reshape(1,1)))[0]
+        assert p > 0
+        return p
 
 
 class probability_copy(AbstractProbabilityFunction):
@@ -189,6 +233,9 @@ def calculate_cllr(lr_class0, lr_class1):
     LrStats
         Likelihood ratio statistics.
     """
+    assert len(lr_class0) > 0
+    assert len(lr_class1) > 0
+
     def avg(*args):
         return sum(args) / len(args)
 
