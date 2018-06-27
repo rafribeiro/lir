@@ -116,7 +116,7 @@ def makeplot(xlabel, xvalues, generators, generator_args):
                 plt.ylabel('std(C_llr)')
 
                 ax_lrstd = plt.subplot(nrows, 1, 4)
-                plt.ylabel('std(2log(lr))')
+                plt.ylabel('std(2log(lr_h0))')
 
                 plt.xlabel(xlabel)
 
@@ -124,7 +124,7 @@ def makeplot(xlabel, xvalues, generators, generator_args):
             plt.ylabel('C_llr')
 
             ax_llr = plt.subplot(nrows, 1, 2)
-            plt.ylabel('2log(lr)')
+            plt.ylabel('2log(lr_h0)')
 
             if nrows == 2:
                 plt.xlabel(xlabel)
@@ -136,7 +136,7 @@ def makeplot(xlabel, xvalues, generators, generator_args):
             ax_lrstd.plot(xvalues, [ llr_stdev(d) for d in stats ], label=g.name)
 
     handles, labels = ax_cllr.get_legend_handles_labels()
-    ax_cllr.legend(handles, labels, loc='upper center', bbox_to_anchor=(.5, 1.5))
+    ax_cllr.legend(handles, labels, loc='lower center', bbox_to_anchor=(.5, 1))
     plt.show()
 
 
@@ -160,7 +160,7 @@ def plot_scheidbaarheid():
         } for d in xvalues ]
 
     generators = [
-        NormalCllrEvaluator('real lr', 0, 1, 0, 1),
+        NormalCllrEvaluator('baseline', 0, 1, 0, 1),
         ClassifierCllrEvaluator('logit', LogisticRegression(), liar.probability_fraction),
         ClassifierCllrEvaluator('logit/cor', LogisticRegression(), liar.probability_copy),
     ]
@@ -170,19 +170,20 @@ def plot_scheidbaarheid():
 
 def plot_datasize():
     xvalues = range(0, 7)
+    dx = 1
     generator_args = []
     for x in xvalues:
         datasize = int(math.pow(2, x))
         generator_args.append({
             'class0_train_generator': generate_data(0, datasize),
-            'class1_train_generator': generate_data(1, datasize),
+            'class1_train_generator': generate_data(dx, datasize),
             'class0_test_generator': generate_data(0, 100),
-            'class1_test_generator': generate_data(1, 100),
+            'class1_test_generator': generate_data(dx, 100),
             'repeat': 100,
         })
 
     generators = [
-        NormalCllrEvaluator('real lr', 0, 1, 1.5, 1),
+        NormalCllrEvaluator('baseline', 0, 1, dx, 1),
         ClassifierCllrEvaluator('logit/fraction', LogisticRegression(), liar.probability_fraction),
         ClassifierCllrEvaluator('logit/cor', LogisticRegression(), liar.probability_copy),
     ]
