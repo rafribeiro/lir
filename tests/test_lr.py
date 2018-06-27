@@ -37,11 +37,11 @@ class TestLR(unittest.TestCase):
             pfunc1 = pfunc(points=points_h1, class_value=1)
             self.assertAlmostEqual(expected_lr, calibrate_lr(point, pfunc0, pfunc1))
 
-    def test_calibrate_cllr(self):
+    def test_calibrated_cllr(self):
         points0 = [ 1, 2, 4, 8 ]
         points1 = [ 2, 6, 8, 9 ]
         pfunc = probability_fraction(value_range=[0, 10])
-        self.assertAlmostEqual(0.9495230001821591   , calibrated_cllr(points0, points1, pfunc).cllr)
+        self.assertAlmostEqual(0.9495230001821591   , calibrated_cllr(pfunc, points0, points1).cllr)
 
     def test_calculate_cllr(self):
         self.assertAlmostEqual(1, calculate_cllr([1, 1], [1, 1]).cllr)
@@ -65,24 +65,24 @@ class TestLR(unittest.TestCase):
         for i in range(1, 10):
             X0 = numpy.random.normal(loc=[-1]*3, scale=.1, size=(i, 3))
             X1 = numpy.random.normal(loc=[1]*3, scale=.1, size=(i, 3))
-            cllr = classifier_cllr(clf, X0, X1, X0, X1).cllr
+            cllr = classifier_cllr(clf, probability_fraction, X0, X1, X0, X1).cllr
             self.assertLess(cllr, prev_cllr)
             prev_cllr = cllr
 
         X0 = numpy.random.normal(loc=[-1]*3, size=(100, 3))
         X1 = numpy.random.normal(loc=[1]*3, size=(100, 3))
-        self.assertAlmostEqual(0.1901544891867276, classifier_cllr(clf, X0, X1, X0, X1).cllr)
+        self.assertAlmostEqual(0.1901544891867276, classifier_cllr(clf, probability_fraction, X0, X1, X0, X1).cllr)
 
         X0 = numpy.random.normal(loc=[-.5]*3, size=(100, 3))
         X1 = numpy.random.normal(loc=[.5]*3, size=(100, 3))
-        self.assertAlmostEqual(0.6153060581423102, classifier_cllr(clf, X0, X1, X0, X1).cllr)
+        self.assertAlmostEqual(0.6153060581423102, classifier_cllr(clf, probability_fraction, X0, X1, X0, X1).cllr)
 
         X0 = numpy.random.normal(loc=[0]*3, size=(100, 3))
         X1 = numpy.random.normal(loc=[0]*3, size=(100, 3))
-        self.assertAlmostEqual(1.285423922204846, classifier_cllr(clf, X0, X1, X0, X1).cllr)
+        self.assertAlmostEqual(1.285423922204846, classifier_cllr(clf, probability_fraction, X0, X1, X0, X1).cllr)
 
         X = numpy.random.normal(loc=[0]*3, size=(400, 3))
-        self.assertAlmostEqual(1.3683601658310476, classifier_cllr(clf, X[:100], X[100:200], X[200:300], X[300:400]).cllr)
+        self.assertAlmostEqual(1.3683601658310476, classifier_cllr(clf, probability_fraction, X[:100], X[100:200], X[200:300], X[300:400]).cllr)
 
 
 if __name__ == '__main__':

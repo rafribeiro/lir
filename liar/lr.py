@@ -2,6 +2,7 @@ import collections
 import math
 
 import numpy as np
+import sklearn
 
 
 class NoneAttr:
@@ -47,15 +48,13 @@ class probability_fraction(AbstractProbabilityFunction):
     float
         A probability value.
     """
-    def __init__(self, points=None, class_value=None, value_range=None, remove_from_reference_points=None, abs_points=None, parent=NoneAttr()):
+    def __init__(self, points=None, class_value=None, value_range=None, remove_from_reference_points=None, parent=NoneAttr()):
         super().__init__(points, class_value, value_range, remove_from_reference_points, parent)
 
-        if abs_points is not None:
-            self.abs_points = abs_points
-        elif points is not None:
-            self.abs_points = sorted([abs(self.value_range[class_value] - p) for p in points])
+        if points is not None:
+            self._abs_points = sorted([abs(self.value_range[class_value] - p) for p in points])
         else:
-            self.abs_points = parent.abs_points
+            self._abs_points = parent._abs_points
 
     def clone(self, **kw):
         return probability_fraction(**kw)
@@ -63,7 +62,47 @@ class probability_fraction(AbstractProbabilityFunction):
     def probability(self, point):
         point = abs(self.value_range[self.class_value] - point)
         add_one = float(not self.remove_from_reference_points)
-        return (add_one + len([p for p in self.abs_points if p >= point])) / (add_one + len(self.abs_points))
+        return (add_one + len([p for p in self._abs_points if p >= point])) / (add_one + len(self._abs_points))
+
+
+class probability_kde(AbstractProbabilityFunction):
+    """
+    Calculates the probability of the value of `point`, provided it is from the
+    same distribution as `reference_points`. Uses kernel density estimation
+    (KDE) for interpolation.
+
+    Parameters
+    ----------
+    point : float
+        The point of interest for which the probability is calculated.
+    reference_points : list of float
+        Points from the same distribution as `point`.
+    class_value : int
+        ignored
+    value_range : tuple of two floats
+        ignored
+
+    Returns
+    -------
+    float
+        A probability value.
+    """
+    def __init__(self, points=None, class_value=None, value_range=None, remove_from_reference_points=None, bandwidth=None, parent=NoneAttr()):
+        super().__init__(points, class_value, value_range, remove_from_reference_points, parent)
+
+        self.bandwidth = bandwidth if bandwidth is not None else parent.bandwidth
+
+        if points is not None:
+            bandwidth = self.bandwidth if self.bandwidth is not None else np.std(points)/4
+            self._kde = sklearn.neighbors.KernelDensity(kernel='gaussian', bandwidth=bandwidth).fit(points)
+        else:
+            self._kde = parent._kde
+
+    def clone(self, **kw):
+        return probability_fraction(**kw)
+
+    def probability(self, point):
+        return np.exp(self._kde.score_samples(np.array(point).reshape(1,1)))[0]
 
 
 class probability_copy(AbstractProbabilityFunction):
@@ -164,15 +203,17 @@ def calculate_cllr(lr_class0, lr_class1):
     return LrStats(avg_llr, avg_llr_class0, avg_llr_class1, cllr_class0, cllr_class1, cllr)
 
 
-def prepare_model(clf, X0_train, X1_train, X0_calibrate, X1_calibrate):
+def prepare_model(clf, X0_train, X1_train):
     assert X0_train.shape[1] == X1_train.shape[1]
     X_train = np.concatenate([X0_train, X1_train])
     y_train = np.concatenate([np.zeros(X0_train.shape[0]), np.ones(X1_train.shape[0])])
 
     clf.fit(X_train, y_train)
-    points0 = clf.predict_proba(X0_calibrate)[:,1] # probability of class 1
-    points1 = clf.predict_proba(X1_calibrate)[:,1] # probability of class 1
-    return clf, list(points0), list(points1)
+    return clf
+
+
+def apply_model(clf, X):
+    return list(clf.predict_proba(X)[:,1]) # probability of class 1
 
 
 def classifier_lr(clf, X0_train, X1_train, X0_calibrate, X1_calibrate, X_disputed, probability_function=probability_fraction):
@@ -209,25 +250,33 @@ def classifier_lr(clf, X0_train, X1_train, X0_calibrate, X1_calibrate, X_dispute
     return calibrate_lr(point, probability_function_class0, probability_function_class1)
 
 
-def calibrated_cllr(points0, points1, probability_function):
-    pfunc0 = probability_function(points=points0, class_value=0)
-    pfunc1 = probability_function(points=points1, class_value=1)
+def calibrated_cllr(probability_function, class0_calibrate, class1_calibrate, class0_test=None, class1_test=None):
+    pfunc0 = probability_function(points=class0_calibrate, class_value=0)
+    pfunc1 = probability_function(points=class1_calibrate, class_value=1)
+
+    use_calibration_set_for_test = class0_test is None
+    if use_calibration_set_for_test:
+        class0_test = class0_calibrate
+        class1_test = class1_calibrate
 
     lrs0 = []
-    for point in points0:
-        lrs0.append(calibrate_lr(point, pfunc0(remove_from_reference_points=True), pfunc1))
+    for point in class0_test:
+        lrs0.append(calibrate_lr(point, pfunc0(remove_from_reference_points=use_calibration_set_for_test), pfunc1))
 
     lrs1 = []
-    for point in points1:
-        lrs1.append(calibrate_lr(point, pfunc0, pfunc1(remove_from_reference_points=True)))
+    for point in class1_test:
+        lrs1.append(calibrate_lr(point, pfunc0, pfunc1(remove_from_reference_points=use_calibration_set_for_test)))
 
     return calculate_cllr(lrs0, lrs1)
 
 
-def classifier_cllr(clf, X0_train, X1_train, X0_calibrate, X1_calibrate, probability_function=probability_fraction):
+def classifier_cllr(clf, probability_function, X0_train, X1_train, X0_calibrate, X1_calibrate, X0_test=None, X1_test=None):
     """
-    Trains a classifier, calibrates the outcome and calculates a LR for all
-    samples.
+    Trains a classifier on a training set, calibrates the outcome with a
+    calibration set, and calculates a LR (likelihood ratio) for all samples in
+    a test set. Calculates a Cllr (log likelihood ratio cost) value for the LR
+    values. If no test set is provided, the calibration set is used for both
+    calibration and testing.
 
     All numpy arrays have two dimensions, representing samples and features.
 
@@ -235,22 +284,50 @@ def classifier_cllr(clf, X0_train, X1_train, X0_calibrate, X1_calibrate, probabi
     ----------
     clf : classifier
         A model to be trained. Must support probability output.
+    probability_function : function
+        A probability function which is used to deterimine the probability of
+        a classifier outcome when sampled from either of both classes.
     X0_train : numpy array
-        Training set for hypothesis 0 (defense's hypothesis)
+        Training set for class 0
     X1_train : numpy array
-        Training set for hypothesis 1 (prosecutor's hypothesis)
+        Training set for class 1
     X0_calibrate : numpy array
-        Calibration set for hypothesis 0 (defense's hypothesis)
+        Calibration set for class 0
     X1_calibrate : numpy array
-        Calibration set for hypothesis 1 (prosecutor's hypothesis)
-    X_test : numpy array
-        Test sample of unknown class
+        Calibration set for class 1
+    X0_test : numpy array
+        Test set for class 0
+    X1_test : numpy array
+        Test set for class 1
 
     Returns
     -------
     float
         A likelihood ratio for `X_test`
     """
-    clf, points0, points1 = prepare_model(clf, X0_train, X1_train, X0_calibrate, X1_calibrate)
+    clf = prepare_model(clf, X0_train, X1_train)
     probability_function = probability_function(value_range=[0,1])
-    return calibrated_cllr(points0, points1, probability_function)
+
+    class0_test = apply_model(clf, X0_test) if X0_test is not None else None
+    class1_test = apply_model(clf, X1_test) if X0_test is not None else None
+
+    return calibrated_cllr(probability_function, apply_model(clf, X0_calibrate), apply_model(clf, X1_calibrate), class0_test, class1_test)
+
+
+def classifier_cllr_kfold(clf, probability_function, n_splits, X0_train, X1_train, X0_test, X1_test):
+    probability_function = probability_function(value_range=[0,1])
+
+    kf = sklearn.model_selection.KFold(n_splits=n_splits, shuffle=True)
+    class0_calibrate = []
+    class1_calibrate = []
+    for X0_tc_index, X1_tc_index in zip(kf.split(X0_train), kf.split(X1_train)):
+        clf = prepare_model(clf, X0_train[X0_tc_index[0]], X1_train[X1_tc_index[0]])
+        class0_calibrate.extend(apply_model(clf, X0_train[X0_tc_index[1]]))
+        class1_calibrate.extend(apply_model(clf, X1_train[X1_tc_index[1]]))
+
+    clf = prepare_model(clf, X0_train, X1_train)
+
+    class0_test = apply_model(clf, X0_test)
+    class1_test = apply_model(clf, X1_test)
+
+    return calibrated_cllr(probability_function, class0_calibrate, class1_calibrate, class0_test, class1_test)

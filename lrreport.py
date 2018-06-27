@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 
 import math
+import time
 
 import matplotlib.pyplot as plt
 import numpy as np
 from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import KFold
 from tqdm import tqdm
 
 import liar
@@ -14,23 +16,24 @@ class AbstractCllrEvaluator:
     def __init__(self, name):
         self.name = name
 
-    def __call__(self, class0_train_generator=None, class1_train_generator=None, class0_test_generator=None, class1_test_generator=None, class0_train=None, class1_train=None, class0_test=None, class1_test=None, distribution_mean_delta=None, repeat=1):
+    def __call__(self, x,
+                 class0_train=None, class1_train=None, class0_calibrate=None, class1_calibrate=None, class0_test=None, class1_test=None, distribution_mean_delta=None,
+                 train_folds=None, train_reuse=False, repeat=1):
         if distribution_mean_delta is not None:
             self._distribution_mean_delta = distribution_mean_delta
 
+        resolve = lambda value: value if value is None or not callable(value) else value(x)
+
         cllr = []
         for run in range(repeat):
-            if class0_train_generator is not None:
-                class0_train = class0_train_generator()
-            if class1_train_generator is not None:
-                class1_train = class1_train_generator()
-            if class0_test_generator is not None:
-                class0_test = class0_test_generator()
-            if class1_test_generator is not None:
-                class1_test = class1_test_generator()
-    
-            if class0_test is not None:
-                cllr.append(self.cllr(class0_train, class1_train, class0_test, class1_test))
+            if class0_train is not None and train_folds is not None:
+                cllr.append(self.cllr_kfold(train_folds, resolve(class0_train), resolve(class1_train), resolve(class0_test), resolve(class1_test)))
+            elif class0_calibrate is not None:
+                cllr.append(self.cllr(resolve(class0_train), resolve(class1_train), resolve(class0_calibrate), resolve(class1_calibrate), resolve(class0_test), resolve(class1_test)))
+            elif class0_train is not None and train_reuse:
+                class0_train_instance = resolve(class0_train)
+                class1_train_instance = resolve(class1_train)
+                cllr.append(self.cllr(class0_train_instance, class1_train_instance, class0_train_instance, class1_train_instance, resolve(class0_test), resolve(class1_test)))
 
         return cllr
 
@@ -56,7 +59,13 @@ class NormalCllrEvaluator(AbstractCllrEvaluator):
         # calculate LR
         return X_p1 / X_p0
 
-    def cllr(self, class0_train, class1_train, class0_test, class1_test):
+    def cllr_kfold(self, n_splits, X0_train, X1_train, X0_test, X1_test):
+        return self.calculate_cllr(X0_test, X1_test)
+
+    def cllr(self, class0_train, class1_train, class0_calibrate, class1_calibrate, class0_test, class1_test):
+        return self.calculate_cllr(class0_test, class1_test)
+
+    def calculate_cllr(self, class0_test, class1_test):
         assert class0_test.shape[1] == 1
 
         # adjust loc1
@@ -79,8 +88,12 @@ class ClassifierCllrEvaluator(AbstractCllrEvaluator):
         self._clf = clf
         self._pfunc = probability_function
 
-    def cllr(self, class0_train, class1_train, class0_test, class1_test):
-        cllr = liar.classifier_cllr(self._clf, class0_train, class1_train, class0_test, class1_test, probability_function=self._pfunc)
+    def cllr_kfold(self, n_splits, X0_train, X1_train, X0_test, X1_test):
+        cllr = liar.classifier_cllr_kfold(self._clf, self._pfunc, n_splits, X0_train, X1_train, X0_test, X1_test)
+        return cllr
+
+    def cllr(self, class0_train, class1_train, class0_calibrate, class1_calibrate, class0_test, class1_test):
+        cllr = liar.classifier_cllr(self._clf, self._pfunc, class0_train, class1_train, class0_calibrate, class1_calibrate, class0_test, class1_test)
         return cllr
 
 
@@ -100,11 +113,13 @@ def llr_stdev(cllr_lst):
     return np.std([d.avg_llr_class0 for d in cllr_lst])
 
 
-def makeplot(xlabel, xvalues, generators, generator_args):
+def makeplot(xlabel, generators, experiments):
     ax_cllr = None
 
+    xvalues, _ = zip(*experiments)
+
     for g in tqdm(generators, desc=xlabel, unit='generators'):
-        stats = [ g(**genargs) for genargs in generator_args ]
+        stats = [ g(x=x, **genargs) for x, genargs in experiments ]
 
         if ax_cllr is None:
             if len(stats[0]) == 1:
@@ -112,7 +127,7 @@ def makeplot(xlabel, xvalues, generators, generator_args):
                 ax_cstd = None
             else:
                 nrows = 4
-                ax_cstd = plt.subplot(nrows, 1, 3)
+                ax_cstd = plt.subplot(nrows, 1, 2)
                 plt.ylabel('std(C_llr)')
 
                 ax_lrstd = plt.subplot(nrows, 1, 4)
@@ -123,17 +138,21 @@ def makeplot(xlabel, xvalues, generators, generator_args):
             ax_cllr = plt.subplot(nrows, 1, 1)
             plt.ylabel('C_llr')
 
-            ax_llr = plt.subplot(nrows, 1, 2)
+            ax_llr = plt.subplot(nrows, 1, 2+int(ax_cstd is not None))
             plt.ylabel('2log(lr_h0)')
 
             if nrows == 2:
                 plt.xlabel(xlabel)
 
-        ax_cllr.plot(xvalues, [ cllr_average(d) for d in stats ], label=g.name)
-        ax_llr.plot(xvalues, [ llr_average(d) for d in stats ], label=g.name)
+        cllrplot = ax_cllr.plot(xvalues, [ cllr_average(d) for d in stats ], 'o--', label=g.name)[0]
+        ax_cllr.plot(xvalues, [ (cllr_average(d)-cllr_stdev(d), cllr_average(d)+cllr_stdev(d)) for d in stats ], '_', color=cllrplot.get_color())
+
+        llrplot = ax_llr.plot(xvalues, [ llr_average(d) for d in stats ], 'o--', label=g.name)[0]
+        ax_llr.plot(xvalues, [ (llr_average(d)-llr_stdev(d), llr_average(d)+llr_stdev(d)) for d in stats ], '_', color=llrplot.get_color())
+
         if ax_cstd is not None:
-            ax_cstd.plot(xvalues, [ cllr_stdev(d) for d in stats ], label=g.name)
-            ax_lrstd.plot(xvalues, [ llr_stdev(d) for d in stats ], label=g.name)
+            ax_cstd.plot(xvalues, [ cllr_stdev(d) for d in stats ], 'o--', label=g.name)
+            ax_lrstd.plot(xvalues, [ llr_stdev(d) for d in stats ], 'o--', label=g.name)
 
     handles, labels = ax_cllr.get_legend_handles_labels()
     ax_cllr.legend(handles, labels, loc='lower center', bbox_to_anchor=(.5, 1))
@@ -145,27 +164,30 @@ class generate_data:
         self.loc = loc
         self.datasize = datasize
 
-    def __call__(self):
+    def __call__(self, x):
         return np.random.normal(loc=self.loc, size=(self.datasize, 1))
 
 
 def plot_scheidbaarheid():
     xvalues = np.arange(0, 6, 1)
     generator_args = [ {
-        'class0_train': np.random.normal(loc=0, scale=1, size=(100, 1)),
-        'class1_train': np.random.normal(loc=d, scale=1, size=(100, 1)),
-        'class0_test': np.random.normal(loc=0, scale=1, size=(100, 1)),
-        'class1_test': np.random.normal(loc=d, scale=1, size=(100, 1)),
+        'class0_train': np.random.normal(loc=0, size=(100, 1)),
+        'class1_train': np.random.normal(loc=d, size=(100, 1)),
+        'class0_calibrate': np.random.normal(loc=0, size=(100, 1)),
+        'class1_calibrate': np.random.normal(loc=d, size=(100, 1)),
+        'class0_test': np.random.normal(loc=0, size=(100, 1)),
+        'class1_test': np.random.normal(loc=d, size=(100, 1)),
         'distribution_mean_delta': d,
         } for d in xvalues ]
 
     generators = [
         NormalCllrEvaluator('baseline', 0, 1, 0, 1),
-        ClassifierCllrEvaluator('logit', LogisticRegression(), liar.probability_fraction),
-        ClassifierCllrEvaluator('logit/cor', LogisticRegression(), liar.probability_copy),
+        ClassifierCllrEvaluator('logit/kde', LogisticRegression(), liar.probability_kde),
+        ClassifierCllrEvaluator('logit/fraction', LogisticRegression(), liar.probability_fraction),
+        ClassifierCllrEvaluator('logit/copy', LogisticRegression(), liar.probability_copy),
     ]
 
-    makeplot('dx', xvalues, generators, generator_args)
+    makeplot('dx', generators, list(zip(xvalues, generator_args)))
 
 
 def plot_datasize():
@@ -175,22 +197,76 @@ def plot_datasize():
     for x in xvalues:
         datasize = int(math.pow(2, x))
         generator_args.append({
-            'class0_train_generator': generate_data(0, datasize),
-            'class1_train_generator': generate_data(dx, datasize),
-            'class0_test_generator': generate_data(0, 100),
-            'class1_test_generator': generate_data(dx, 100),
+            'class0_train': generate_data(0, datasize),
+            'class1_train': generate_data(dx, datasize),
+            'class0_calibrate': generate_data(0, 100),
+            'class1_calibrate': generate_data(dx, 100),
+            'class0_test': generate_data(0, 100),
+            'class1_test': generate_data(dx, 100),
             'repeat': 100,
         })
 
     generators = [
         NormalCllrEvaluator('baseline', 0, 1, dx, 1),
+        ClassifierCllrEvaluator('logit/kde', LogisticRegression(), liar.probability_kde),
         ClassifierCllrEvaluator('logit/fraction', LogisticRegression(), liar.probability_fraction),
-        ClassifierCllrEvaluator('logit/cor', LogisticRegression(), liar.probability_copy),
+        ClassifierCllrEvaluator('logit/copy', LogisticRegression(), liar.probability_copy),
     ]
 
-    makeplot('data size 2^x; 100x', xvalues, generators, generator_args)
+    makeplot('data size 2^x; 100x', generators, list(zip(xvalues, generator_args)))
+
+
+def plot_split():
+    datasize = 10
+    testsize = 100
+    dx = 1
+    experiments = [
+        ('split50', {
+            'class0_train': lambda x: np.random.normal(loc=0, size=(int(datasize/2), 1)),
+            'class1_train': lambda x: np.random.normal(loc=dx, size=(int(datasize/2), 1)),
+            'class0_calibrate': lambda x: np.random.normal(loc=0, size=(int(datasize/2), 1)),
+            'class1_calibrate': lambda x: np.random.normal(loc=dx, size=(int(datasize/2), 1)),
+            'class0_test': lambda x: np.random.normal(loc=0, size=(testsize, 1)),
+            'class1_test': lambda x: np.random.normal(loc=dx, size=(testsize, 1)),
+            'repeat': 100,
+        }),
+        ('2fold', {
+            'class0_train': lambda x: np.random.normal(loc=0, size=(datasize, 1)),
+            'class1_train': lambda x: np.random.normal(loc=dx, size=(datasize, 1)),
+            'class0_test': lambda x: np.random.normal(loc=0, size=(testsize, 1)),
+            'class1_test': lambda x: np.random.normal(loc=dx, size=(testsize, 1)),
+            'train_folds': 2,
+            'repeat': 100,
+        }),
+        ('4fold', {
+            'class0_train': lambda x: np.random.normal(loc=0, size=(datasize, 1)),
+            'class1_train': lambda x: np.random.normal(loc=dx, size=(datasize, 1)),
+            'class0_test': lambda x: np.random.normal(loc=0, size=(testsize, 1)),
+            'class1_test': lambda x: np.random.normal(loc=dx, size=(testsize, 1)),
+            'train_folds': 4,
+            'repeat': 100,
+        }),
+        ('reuse', {
+            'class0_train': lambda x: np.random.normal(loc=0, size=(datasize, 1)),
+            'class1_train': lambda x: np.random.normal(loc=dx, size=(datasize, 1)),
+            'class0_test': lambda x: np.random.normal(loc=0, size=(testsize, 1)),
+            'class1_test': lambda x: np.random.normal(loc=dx, size=(testsize, 1)),
+            'train_reuse': True,
+            'repeat': 100,
+        }),
+    ]
+
+    generators = [
+        NormalCllrEvaluator('baseline', 0, 1, dx, 1),
+        ClassifierCllrEvaluator('logit/kde', LogisticRegression(), liar.probability_kde),
+        ClassifierCllrEvaluator('logit/fraction', LogisticRegression(), liar.probability_fraction),
+        ClassifierCllrEvaluator('logit/copy', LogisticRegression(), liar.probability_copy),
+    ]
+
+    makeplot('data splits of {} samples for each class'.format(datasize), generators, experiments)
 
 
 if __name__ == '__main__':
     plot_scheidbaarheid()
     plot_datasize()
+    plot_split()
