@@ -5,6 +5,7 @@ import math
 import matplotlib.pyplot as plt
 import numpy as np
 from sklearn.linear_model import LogisticRegression
+from tqdm import tqdm
 
 import liar
 
@@ -56,6 +57,8 @@ class NormalCllrEvaluator(AbstractCllrEvaluator):
         return X_p1 / X_p0
 
     def cllr(self, class0_train, class1_train, class0_test, class1_test):
+        assert class0_test.shape[1] == 1
+
         # adjust loc1
         if self._distribution_mean_delta is not None:
             self._loc1 = self._loc0 + self._distribution_mean_delta
@@ -85,38 +88,65 @@ def cllr_average(cllr_lst):
     return sum([d.cllr for d in cllr_lst]) / len(cllr_lst)
 
 
-def llr_average(cllr_lst):
-    return sum([d.avg_llr for d in cllr_lst]) / len(cllr_lst)
-
-
 def cllr_stdev(cllr_lst):
     return np.std([d.cllr for d in cllr_lst])
 
 
+def llr_average(cllr_lst):
+    return sum([d.avg_llr_class0 for d in cllr_lst]) / len(cllr_lst)
+
+
+def llr_stdev(cllr_lst):
+    return np.std([d.avg_llr_class0 for d in cllr_lst])
+
+
 def makeplot(xlabel, xvalues, generators, generator_args):
-    ax_cllr = plt.subplot(1,3,1)
-    plt.xlabel(xlabel)
-    plt.ylabel('Cllr')
+    ax_cllr = None
 
-    ax_llr = plt.subplot(1,3,2)
-    plt.xlabel(xlabel)
-    plt.ylabel('llr')
-
-    ax_stdev = plt.subplot(1,3,3)
-    plt.xlabel(xlabel)
-    plt.ylabel('cllr/stdev')
-
-    for g in generators:
+    for g in tqdm(generators, desc=xlabel, unit='generators'):
         stats = [ g(**genargs) for genargs in generator_args ]
+
+        if ax_cllr is None:
+            if len(stats[0]) == 1:
+                nrows = 2
+                ax_cstd = None
+            else:
+                nrows = 4
+                ax_cstd = plt.subplot(nrows, 1, 3)
+                plt.ylabel('std(C_llr)')
+
+                ax_lrstd = plt.subplot(nrows, 1, 4)
+                plt.ylabel('std(2log(lr))')
+
+                plt.xlabel(xlabel)
+
+            ax_cllr = plt.subplot(nrows, 1, 1)
+            plt.ylabel('C_llr')
+
+            ax_llr = plt.subplot(nrows, 1, 2)
+            plt.ylabel('2log(lr)')
+
+            if nrows == 2:
+                plt.xlabel(xlabel)
+
         ax_cllr.plot(xvalues, [ cllr_average(d) for d in stats ], label=g.name)
         ax_llr.plot(xvalues, [ llr_average(d) for d in stats ], label=g.name)
-        ax_stdev.plot(xvalues, [ cllr_stdev(d) for d in stats ], label=g.name)
+        if ax_cstd is not None:
+            ax_cstd.plot(xvalues, [ cllr_stdev(d) for d in stats ], label=g.name)
+            ax_lrstd.plot(xvalues, [ llr_stdev(d) for d in stats ], label=g.name)
 
     handles, labels = ax_cllr.get_legend_handles_labels()
-    ax_cllr.legend(handles, labels)
-    ax_llr.legend(handles, labels)
-    ax_stdev.legend(handles, labels)
+    ax_cllr.legend(handles, labels, loc='upper center', bbox_to_anchor=(.5, 1.5))
     plt.show()
+
+
+class generate_data:
+    def __init__(self, loc, datasize):
+        self.loc = loc
+        self.datasize = datasize
+
+    def __call__(self):
+        return np.random.normal(loc=self.loc, size=(self.datasize, 1))
 
 
 def plot_scheidbaarheid():
@@ -125,7 +155,7 @@ def plot_scheidbaarheid():
         'class0_train': np.random.normal(loc=0, scale=1, size=(100, 1)),
         'class1_train': np.random.normal(loc=d, scale=1, size=(100, 1)),
         'class0_test': np.random.normal(loc=0, scale=1, size=(100, 1)),
-        'class1_test': lambda: np.random.normal(loc=d, scale=1, size=(100, 1)),
+        'class1_test': np.random.normal(loc=d, scale=1, size=(100, 1)),
         'distribution_mean_delta': d,
         } for d in xvalues ]
 
@@ -139,27 +169,27 @@ def plot_scheidbaarheid():
 
 
 def plot_datasize():
-    xvalues = range(2, 12)
+    xvalues = range(0, 7)
     generator_args = []
     for x in xvalues:
         datasize = int(math.pow(2, x))
         generator_args.append({
-            'class0_train_generator': lambda: np.random.normal(loc=0, size=(datasize, 1)),
-            'class1_train_generator': lambda: np.random.normal(loc=1.5, size=(datasize, 1)),
-            'class0_test_generator': lambda: np.random.normal(loc=0, size=(datasize, 1)),
-            'class1_test_generator': lambda: np.random.normal(loc=1.5, size=(datasize, 1)),
-            'repeat': 10,
+            'class0_train_generator': generate_data(0, datasize),
+            'class1_train_generator': generate_data(1, datasize),
+            'class0_test_generator': generate_data(0, 100),
+            'class1_test_generator': generate_data(1, 100),
+            'repeat': 100,
         })
 
     generators = [
         NormalCllrEvaluator('real lr', 0, 1, 1.5, 1),
-        ClassifierCllrEvaluator('logit', LogisticRegression(), liar.probability_fraction),
+        ClassifierCllrEvaluator('logit/fraction', LogisticRegression(), liar.probability_fraction),
         ClassifierCllrEvaluator('logit/cor', LogisticRegression(), liar.probability_copy),
     ]
 
-    makeplot('dx', xvalues, generators, generator_args)
+    makeplot('data size 2^x; 100x', xvalues, generators, generator_args)
 
 
 if __name__ == '__main__':
-    #plot_scheidbaarheid()
+    plot_scheidbaarheid()
     plot_datasize()
