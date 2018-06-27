@@ -132,20 +132,23 @@ class probability_gaussian_mixture(AbstractProbabilityFunction):
     float
         A probability value.
     """
-    def __init__(self, points=None, class_value=None, value_range=None, remove_from_reference_points=None, parent=NoneAttr()):
+    def __init__(self, points=None, class_value=None, value_range=None, remove_from_reference_points=None, base_value=None, parent=NoneAttr()):
         super().__init__(points, class_value, value_range, remove_from_reference_points, parent)
+
+        self.base_value_param = base_value if base_value is not None else parent.base_value_param
 
         if points is not None:
             self._model = sklearn.mixture.GaussianMixture().fit(np.array(points).reshape(-1,1))
+            self._base_value = self.base_value_param if self.base_value_param is not None else 1. / len(points)
         else:
             self._model = parent._model
+            self._base_value = parent._base_value
 
     def clone(self, **kw):
         return probability_gaussian_mixture(**kw)
 
     def probability(self, point):
-        p = np.exp(self._model.score_samples(np.array(point).reshape(1,1)))[0]
-        assert p > 0
+        p = self._base_value + np.exp(self._model.score_samples(np.array(point).reshape(1,1)))[0]
         return p
 
 

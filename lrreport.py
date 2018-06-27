@@ -168,7 +168,7 @@ class generate_data:
         return np.random.normal(loc=self.loc, size=(self.datasize, 1))
 
 
-def plot_scheidbaarheid():
+def plot_scheidbaarheid(repeat):
     xvalues = np.arange(0, 6, 1)
     generator_args = [ {
         'class0_train': lambda x: np.random.normal(loc=0, size=(100, 1)),
@@ -178,7 +178,7 @@ def plot_scheidbaarheid():
         'class0_test': lambda x: np.random.normal(loc=0, size=(100, 1)),
         'class1_test': lambda x: np.random.normal(loc=x, size=(100, 1)),
         'distribution_mean_delta': d,
-        'repeat': 100,
+        'repeat': repeat,
         } for d in xvalues ]
 
     generators = [
@@ -192,7 +192,7 @@ def plot_scheidbaarheid():
     makeplot('dx', generators, list(zip(xvalues, generator_args)))
 
 
-def plot_datasize():
+def plot_datasize(repeat):
     xvalues = range(0, 7)
     dx = 1
     generator_args = []
@@ -205,7 +205,7 @@ def plot_datasize():
             'class1_calibrate': generate_data(dx, 100),
             'class0_test': generate_data(0, 100),
             'class1_test': generate_data(dx, 100),
-            'repeat': 100,
+            'repeat': repeat,
         })
 
     generators = [
@@ -216,10 +216,10 @@ def plot_datasize():
         ClassifierCllrEvaluator('logit/copy', LogisticRegression(), liar.probability_copy),
     ]
 
-    makeplot('data size 2^x; 100x', generators, list(zip(xvalues, generator_args)))
+    makeplot('data size 2^x; {repeat}x'.format(repeat=repeat), generators, list(zip(xvalues, generator_args)))
 
 
-def plot_split():
+def plot_split(repeat):
     datasize = 10
     testsize = 100
     dx = 1
@@ -231,7 +231,7 @@ def plot_split():
             'class1_calibrate': lambda x: np.random.normal(loc=dx, size=(int(datasize/2), 1)),
             'class0_test': lambda x: np.random.normal(loc=0, size=(testsize, 1)),
             'class1_test': lambda x: np.random.normal(loc=dx, size=(testsize, 1)),
-            'repeat': 100,
+            'repeat': repeat,
         }),
         ('2fold', {
             'class0_train': lambda x: np.random.normal(loc=0, size=(datasize, 1)),
@@ -239,7 +239,7 @@ def plot_split():
             'class0_test': lambda x: np.random.normal(loc=0, size=(testsize, 1)),
             'class1_test': lambda x: np.random.normal(loc=dx, size=(testsize, 1)),
             'train_folds': 2,
-            'repeat': 100,
+            'repeat': repeat,
         }),
         ('4fold', {
             'class0_train': lambda x: np.random.normal(loc=0, size=(datasize, 1)),
@@ -247,7 +247,7 @@ def plot_split():
             'class0_test': lambda x: np.random.normal(loc=0, size=(testsize, 1)),
             'class1_test': lambda x: np.random.normal(loc=dx, size=(testsize, 1)),
             'train_folds': 4,
-            'repeat': 100,
+            'repeat': repeat,
         }),
         ('reuse', {
             'class0_train': lambda x: np.random.normal(loc=0, size=(datasize, 1)),
@@ -255,7 +255,7 @@ def plot_split():
             'class0_test': lambda x: np.random.normal(loc=0, size=(testsize, 1)),
             'class1_test': lambda x: np.random.normal(loc=dx, size=(testsize, 1)),
             'train_reuse': True,
-            'repeat': 100,
+            'repeat': repeat,
         }),
     ]
 
@@ -271,6 +271,6 @@ def plot_split():
 
 
 if __name__ == '__main__':
-    plot_scheidbaarheid()
-    plot_datasize()
-    plot_split()
+    plot_scheidbaarheid(20)
+    plot_datasize(20)
+    plot_split(20)
