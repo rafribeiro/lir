@@ -1,33 +1,90 @@
+import collections
+import logging
 import math
 
 import numpy as np
 import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split
+from tqdm import tqdm
 
 from . import *
 
 
+LOG = logging.getLogger(__name__)
+
+
+def process_vector(preprocessor, *X):
+    X = [ np.empty(shape=(0,X[0].shape[1])) if x is None else x for x in X ]
+    X_all = np.concatenate(X)
+
+    X_all = preprocessor.fit_transform(X_all)
+    cursor = 0
+    X_out = []
+    for x in X:
+        X_out.append(X_all[cursor:cursor+x.shape[0],:] if x.shape[0] > 0 else None)
+        cursor += x.shape[0]
+
+    return X_out
+
+
 class AbstractCllrEvaluator:
-    def __init__(self, name):
+    def __init__(self, name, progress_bar=False):
         self.name = name
+        self.progress_bar = progress_bar
+
+    def get_sample(pool, sample_size, default_value):
+        if sample_size == -1:
+            return pool, None
+        elif sample_size is not None and sample_size == pool.shape[0]:
+            return pool, None
+        elif sample_size is not None:
+            sample, newpool = train_test_split(pool, train_size=sample_size)
+            assert sample.shape[0] == sample_size
+            assert sample.shape[0] + newpool.shape[0] == pool.shape[0]
+            return sample, newpool
+        else:
+            return default_value, pool
 
     def __call__(self, x,
-                 class0_train=None, class1_train=None, class0_calibrate=None, class1_calibrate=None, class0_test=None, class1_test=None, distribution_mean_delta=None,
+                 X0=None, X1=None,
+                 train_size=None, calibrate_size=None, test_size=None,
+                 class0_train_size=None, class0_calibrate_size=None, class0_test_size=None,
+                 class1_train_size=None, class1_calibrate_size=None, class1_test_size=None,
+                 class0_train=None, class1_train=None, class0_calibrate=None, class1_calibrate=None, class0_test=None, class1_test=None,
+                 distribution_mean_delta=None,
                  train_folds=None, train_reuse=False, repeat=1):
+
         if distribution_mean_delta is not None:
             self._distribution_mean_delta = distribution_mean_delta
 
         resolve = lambda value: value if value is None or not callable(value) else value(x)
 
         cllr = []
-        for run in range(repeat):
+        for run in tqdm(range(repeat), desc='{} ({})'.format(self.name, x), disable=not self.progress_bar):
+            class0_pool = resolve(X0)
+            class1_pool = resolve(X1)
+
+            class0_train, class0_pool = AbstractCllrEvaluator.get_sample(class0_pool, class0_train_size if class0_train_size is not None else train_size, resolve(class0_train))
+            class0_calibrate, class0_pool = AbstractCllrEvaluator.get_sample(class0_pool, class0_calibrate_size if class0_calibrate_size is not None else calibrate_size, resolve(class0_calibrate))
+            class0_test, class0_pool = AbstractCllrEvaluator.get_sample(class0_pool, class0_test_size if class0_test_size is not None else test_size, resolve(class0_test))
+
+            class1_train, class1_pool = AbstractCllrEvaluator.get_sample(class1_pool, class1_train_size if class1_train_size is not None else train_size, resolve(class1_train))
+            class1_calibrate, class1_pool = AbstractCllrEvaluator.get_sample(class1_pool, class1_calibrate_size if class1_calibrate_size is not None else calibrate_size, resolve(class1_calibrate))
+            class1_test, class1_pool = AbstractCllrEvaluator.get_sample(class1_pool, class1_test_size if class1_test_size is not None else test_size, resolve(class1_test))
+
             if class0_train is not None and train_folds is not None:
-                cllr.append(self.cllr_kfold(train_folds, resolve(class0_train), resolve(class1_train), resolve(class0_test), resolve(class1_test)))
+                LOG.debug('evaluate cllr kfold')
+                assert class0_train is not None
+                assert class1_train is not None
+                assert class0_test is not None
+                assert class1_test is not None
+                cllr.append(self.cllr_kfold(train_folds, class0_train, class1_train, class0_test, class1_test))
             elif class0_calibrate is not None:
-                cllr.append(self.cllr(resolve(class0_train), resolve(class1_train), resolve(class0_calibrate), resolve(class1_calibrate), resolve(class0_test), resolve(class1_test)))
+                LOG.debug('evaluate cllr')
+                cllr.append(self.cllr(class0_train, class1_train, class0_calibrate, class1_calibrate, class0_test, class1_test))
             elif class0_train is not None and train_reuse:
-                class0_train_instance = resolve(class0_train)
-                class1_train_instance = resolve(class1_train)
-                cllr.append(self.cllr(class0_train_instance, class1_train_instance, class0_train_instance, class1_train_instance, resolve(class0_test), resolve(class1_test)))
+                LOG.debug('evaluate cllr, reuse training set for calibration')
+                cllr.append(self.cllr(class0_train, class1_train, class0_train, class1_train, class0_test, class1_test))
 
         return cllr
 
@@ -75,79 +132,176 @@ class NormalCllrEvaluator(AbstractCllrEvaluator):
         return cllr
 
 
-class ClassifierCllrEvaluator(AbstractCllrEvaluator):
-    def __init__(self, name, clf, probability_function):
-        super().__init__(name)
+class ScoreBasedCllrEvaluator(AbstractCllrEvaluator):
+    def __init__(self, name, clf, density_function, preprocessors, progress_bar=False):
+        super().__init__(name, progress_bar)
 
         self._clf = clf
-        self._pfunc = probability_function
+        self._pfunc = density_function
+        self._preprocessors = preprocessors
 
     def cllr_kfold(self, n_splits, X0_train, X1_train, X0_test, X1_test):
-        cllr = classifier_cllr_kfold(self._clf, self._pfunc, n_splits, X0_train, X1_train, X0_test, X1_test)
+        for p in self._preprocessors:
+            X0_train, X1_train, X0_test, X1_test = process_vector(p, X0_train, X1_train, X0_test, X1_test)
+        cllr = scorebased_cllr_kfold(self._clf, self._pfunc, n_splits, X0_train, X1_train, X0_test, X1_test)
         return cllr
 
     def cllr(self, class0_train, class1_train, class0_calibrate, class1_calibrate, class0_test, class1_test):
-        cllr = classifier_cllr(self._clf, self._pfunc, class0_train, class1_train, class0_calibrate, class1_calibrate, class0_test, class1_test)
+        for p in self._preprocessors:
+            class0_train, class1_train, class0_calibrate, class1_calibrate, class0_test, class1_test = process_vector(p, class0_train, class1_train, class0_calibrate, class1_calibrate, class0_test, class1_test)
+        cllr = scorebased_cllr(self._clf, self._pfunc, class0_train, class1_train, class0_calibrate, class1_calibrate, class0_test, class1_test)
         return cllr
 
 
-def cllr_average(cllr_lst):
-    return sum([d.cllr for d in cllr_lst]) / len(cllr_lst)
+class PlotCllrAvg:
+    def ylabel():
+        return 'C_llr'
+
+    def value(cllr_lst):
+        return sum([d.cllr for d in cllr_lst]) / len(cllr_lst)
+
+    def std(cllr_lst):
+        return np.std([d.cllr for d in cllr_lst])
 
 
-def cllr_stdev(cllr_lst):
-    return np.std([d.cllr for d in cllr_lst])
+class PlotCllrStd:
+    def ylabel():
+        return 'std(C_llr)'
+
+    def value(cllr_lst):
+        return PlotCllrAvg.std(cllr_lst)
+
+    def std(cllr_lst):
+        return None
 
 
-def llr_average(cllr_lst):
-    return sum([d.avg_llr_class0 for d in cllr_lst]) / len(cllr_lst)
+class PlotCllrCal:
+    def ylabel():
+        return 'C_llr calibration loss'
+
+    def value(cllr_lst):
+        return sum([d.cllr_cal for d in cllr_lst]) / len(cllr_lst)
+
+    def std(cllr_lst):
+        return None
 
 
-def llr_stdev(cllr_lst):
-    return np.std([d.avg_llr_class0 for d in cllr_lst])
+class PlotLlrAvg:
+    def ylabel():
+        return 'llr_h0'
+
+    def value(cllr_lst):
+        return sum([d.avg_llr_class0 for d in cllr_lst]) / len(cllr_lst)
+
+    def std(cllr_lst):
+        return np.std([d.avg_llr_class0 for d in cllr_lst])
 
 
-def makeplot(xlabel, generators, experiments):
-    ax_cllr = None
+class PlotLlrStd:
+    def ylabel():
+        return 'std(llr_h0)'
+
+    def value(cllr_lst):
+        return PlotLlrAvg.std(cllr_lst)
+
+    def std(cllr_lst):
+        return None
+
+
+def makeplot_density(clf, X0_train, X1_train, X0_calibrate, X1_calibrate, calibrators, savefig=None, show=None):
+    line_colors = ['r', 'g', 'b', 'c', 'm', 'y', 'k', ]
+
+    plt.figure(figsize=(20,20), dpi=100)
+
+    clf.fit(*lr.Xn_to_Xy(X0_train, X1_train))
+    points0 = lr.apply_scorer(clf, X0_calibrate)
+    points1 = lr.apply_scorer(clf, X1_calibrate)
+
+    for name, f in calibrators:
+        f.fit(points0, points1)
+
+    x = np.arange(0, 1, .01)
+
+    plt.hist(points0, bins=20, alpha=.25, density=True)
+    plt.hist(points1, bins=20, alpha=.25, density=True)
+
+    for i, nf in enumerate(calibrators):
+        name, f = nf
+        f.transform(x)
+        plt.plot(x, f.p0, label=name, c=line_colors[i])
+        plt.plot(x, f.p1, label=name, c=line_colors[i])
+
+    plt.legend()
+
+    if savefig is not None:
+        plt.savefig(savefig)
+    if show or savefig is None:
+        plt.show()
+
+
+def makeplot_cllr(xlabel, generators, experiments, savefig=None, show=None, plots=[PlotCllrAvg, PlotCllrStd, PlotCllrCal]):
+    plt.figure(figsize=(20,20), dpi=100)
+
+    axs = None
 
     xvalues, _ = zip(*experiments)
 
     for g in generators:
+        LOG.debug('makeplot_cllr: {name}'.format(name=g.name))
         stats = [ g(x=x, **genargs) for x, genargs in experiments ]
 
-        if ax_cllr is None:
-            if len(stats[0]) == 1:
-                nrows = 2
-                ax_cstd = None
-            else:
-                nrows = 4
-                ax_cstd = plt.subplot(nrows, 1, 2)
-                plt.ylabel('std(C_llr)')
+        if axs is None:
+            axs = []
+            for i, plot in enumerate(plots):
+                ax = plt.subplot(len(plots), 1, i+1)
+                plt.ylabel(plot.ylabel())
+                axs.append(ax)
 
-                ax_lrstd = plt.subplot(nrows, 1, 4)
-                plt.ylabel('std(2log(lr_h0))')
+            plt.xlabel(xlabel)
 
-                plt.xlabel(xlabel)
+        for i in range(len(plots)):
+            plot = plots[i]
+            ax = axs[i]
+            axplot = ax.plot(xvalues, [ plot.value(d) for d in stats ], 'o--', label=g.name)[0]
+            if plot.std(stats[0]) is not None:
+                ax.plot(xvalues, [ (plot.value(d)-plot.std(d), plot.value(d)+plot.std(d)) for d in stats ], '_', color=axplot.get_color())
 
-            ax_cllr = plt.subplot(nrows, 1, 1)
-            plt.ylabel('C_llr')
+    handles, labels = axs[0].get_legend_handles_labels()
+    axs[0].legend(handles, labels, loc='lower center', bbox_to_anchor=(.5, 1), ncol=2)
 
-            ax_llr = plt.subplot(nrows, 1, 2+int(ax_cstd is not None))
-            plt.ylabel('2log(lr_h0)')
+    if savefig is not None:
+        plt.savefig(savefig)
+    if show or savefig is None:
+        plt.show()
 
-            if nrows == 2:
-                plt.xlabel(xlabel)
 
-        cllrplot = ax_cllr.plot(xvalues, [ cllr_average(d) for d in stats ], 'o--', label=g.name)[0]
-        ax_cllr.plot(xvalues, [ (cllr_average(d)-cllr_stdev(d), cllr_average(d)+cllr_stdev(d)) for d in stats ], '_', color=cllrplot.get_color())
+def makeplot_accuracy(scorer, density_function, X0_train, X1_train, X0_calibrate, X1_calibrate, title, labels=('class0', 'class1'), savefig=None, show=None):
+    LOG.debug('makeplot_accuracy')
+    stats = lr.scorebased_cllr(scorer, density_function, X0_train, X1_train, X0_calibrate, X1_calibrate)
 
-        llrplot = ax_llr.plot(xvalues, [ llr_average(d) for d in stats ], 'o--', label=g.name)[0]
-        ax_llr.plot(xvalues, [ (llr_average(d)-llr_stdev(d), llr_average(d)+llr_stdev(d)) for d in stats ], '_', color=llrplot.get_color())
+    scale = 2
 
-        if ax_cstd is not None:
-            ax_cstd.plot(xvalues, [ cllr_stdev(d) for d in stats ], 'o--', label=g.name)
-            ax_lrstd.plot(xvalues, [ llr_stdev(d) for d in stats ], 'o--', label=g.name)
+    plt.figure(figsize=(20,20), dpi=100)
 
-    handles, labels = ax_cllr.get_legend_handles_labels()
-    ax_cllr.legend(handles, labels, loc='lower center', bbox_to_anchor=(.5, 1))
-    plt.show()
+    bins0 = collections.defaultdict(float)
+    for v in stats.lr_class0:
+        bins0[int(round(math.log(v, scale)))] += (1 if v < 1 else v) / len(stats.lr_class0)
+
+    bins1 = collections.defaultdict(float)
+    for v in stats.lr_class1:
+        bins1[int(round(math.log(v, scale)))] += (1 if v > 1 else 1/v) / len(stats.lr_class1)
+
+    bins0_x, bins0_y = zip(*sorted(bins0.items()))
+    bins1_x, bins1_y = zip(*sorted(bins1.items()))
+
+    plt.bar(np.array(bins0_x) - .15, bins0_y, label=labels[0], width=.3)
+    plt.bar(np.array(bins1_x) + .15, bins1_y, label=labels[1], width=.3)
+
+    plt.title(title)
+
+    plt.legend()
+
+    if savefig is not None:
+        plt.savefig(savefig)
+    if show or savefig is None:
+        plt.show()

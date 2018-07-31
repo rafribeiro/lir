@@ -39,7 +39,7 @@ def plot_scheidbaarheid(repeat):
         ClassifierCllrEvaluator('logit/copy', LogisticRegression(), liar.probability_copy),
     ]
 
-    makeplot('dx', generators, list(zip(xvalues, generator_args)))
+    makeplot('dx', generators, list(zip(xvalues, generator_args)), savefig='plot_scheidbaarheid.png', show=True)
 
 
 def plot_datasize(repeat):
@@ -66,7 +66,7 @@ def plot_datasize(repeat):
         ClassifierCllrEvaluator('logit/copy', LogisticRegression(), liar.probability_copy),
     ]
 
-    makeplot('data size 2^x; {repeat}x'.format(repeat=repeat), generators, list(zip(xvalues, generator_args)))
+    makeplot('data size 2^x; {repeat}x'.format(repeat=repeat), generators, list(zip(xvalues, generator_args)), savefig='plot_datasize.png', show=True)
 
 
 def plot_split(repeat):
@@ -117,7 +117,7 @@ def plot_split(repeat):
         ClassifierCllrEvaluator('logit/copy', LogisticRegression(), liar.probability_copy),
     ]
 
-    makeplot('data splits of {} samples for each class'.format(datasize), generators, experiments)
+    makeplot('data splits of {} samples for each class'.format(datasize), generators, experiments, savefig='plot_split.png', show=True)
 
 
 if __name__ == '__main__':
