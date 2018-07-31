@@ -154,78 +154,17 @@ class GaussianCalibrator(BaseEstimator, TransformerMixin):
         return self.p1 / self.p0
 
 
-_PRINT_ISOTONIC_WARNING = True
-_PRINT_SKLEARN_WARNING = True
 class IsotonicCalibrator(BaseEstimator, TransformerMixin):
     """
     Calculates a likelihood ratio of a score value, provided it is from one of
     two distributions. Uses isotonic regression for interpolation.
     """
 
-    def __init__(self, add_one=False, use_sklearn=True):
-        global _PRINT_ISOTONIC_WARNING, _PRINT_SKLEARN_WARNING
-
+    def __init__(self, add_one=False):
         self.add_one = add_one
-
-        self.use_sklearn = use_sklearn
-        if self.use_sklearn:
-            self._ir = sklearn.isotonic.IsotonicRegression()
-
-        if use_sklearn and _PRINT_SKLEARN_WARNING:
-            LOG.warning('Rolf zegt: [sklearn implementation of isotonic regression] appears incorrect when weights and multiple identical values are present')
-            _PRINT_SKLEARN_WARNING = False
-        if not use_sklearn and _PRINT_ISOTONIC_WARNING:
-            LOG.warning('broken implementation of isotonic regression (see unit test)')
-            _PRINT_ISOTONIC_WARNING = False
-
-    def _isotonic_regression(y,
-                             weight):
-        """
-        implementation of isotonic regression
-
-        :param y: ordered input values
-        :param weight: associated weights
-        :return: function values such that the function is non-decreasing and minimises the weighted SSE: ∑ w_i (y_i - f_i)^2
-        """
-
-        n = y.shape[0]
-        # The algorithm proceeds by iteratively updating the solution
-        # array.
-
-        solution = y.copy()
-
-        if n <= 1:
-            return solution
-
-        n -= 1
-        pooled = 1
-        while pooled > 0:
-            # repeat until there are no more adjacent violators.
-            i = 0
-            pooled = 0
-            while i < n:
-                k = i
-                while k < n and solution[k] >= solution[k + 1]:
-                    k += 1
-                if solution[i] != solution[k]:
-                    # solution[i:k + 1] is a decreasing subsequence, so
-                    # replace each point in the subsequence with the
-                    # weighted average of the subsequence.
-                    numerator = 0.0
-                    denominator = 0.0
-                    for j in range(i, k + 1):
-                        numerator += solution[j] * weight[j]
-                        denominator += weight[j]
-                    for j in range(i, k + 1):
-                        solution[j] = numerator / denominator
-                    pooled = 1
-                i = k + 1
-        return solution
+        self._ir = sklearn.isotonic.IsotonicRegression()
 
     def fit(self, X0, X1, add_one=None):
-        if not self.use_sklearn:
-            raise ValueError('not implemented')
-
         # prevent extreme LRs
         if add_one or (add_one is None and self.add_one):
             X0 = np.append(X0, 1)
@@ -238,9 +177,6 @@ class IsotonicCalibrator(BaseEstimator, TransformerMixin):
         self._ir.fit(X, y, sample_weight=weight)
 
     def transform(self, X):
-        if not self.use_sklearn:
-            raise ValueError('not implemented')
-
         posterior = self._ir.transform(X)
 
         self.p0 = (1 - posterior)
@@ -259,13 +195,7 @@ class IsotonicCalibrator(BaseEstimator, TransformerMixin):
         X, y = Xn_to_Xy(X0, X1)
         weight = np.concatenate([ [X1n] * X0n, [X0n] * X1n ])
 
-        if self.use_sklearn:
-            posterior = self._ir.fit_transform(X, y, sample_weight=weight)
-        else:
-            y = y * 1.0 # be sure to have floats
-            sor = np.argsort(X)
-            dhat = IsotonicCalibrator._isotonic_regression(y[sor], weight[sor])
-            posterior = dhat[np.argsort(sor)]
+        posterior = self._ir.fit_transform(X, y, sample_weight=weight)
 
         self.p0 = (1 - posterior)
         self.p1 = posterior
