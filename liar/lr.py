@@ -184,26 +184,6 @@ class IsotonicCalibrator(BaseEstimator, TransformerMixin):
         with np.errstate(divide='ignore'):
             return self.p1 / self.p0
 
-    def fit_transform(self, X0, X1, add_one=None):
-        # prevent extreme LRs
-        if add_one or (add_one is None and self.add_one):
-            X0 = np.append(X0, 1)
-            X1 = np.append(X1, 0)
-
-        X0n = X0.shape[0]
-        X1n = X1.shape[0]
-        X, y = Xn_to_Xy(X0, X1)
-        weight = np.concatenate([ [X1n] * X0n, [X0n] * X1n ])
-
-        posterior = self._ir.fit_transform(X, y, sample_weight=weight)
-
-        self.p0 = (1 - posterior)
-        self.p1 = posterior
-        with np.errstate(divide='ignore'):
-            lr = self.p1 / self.p0
-
-        return lr[:X0n], lr[X0n:]
-
 
 class DummyCalibrator(BaseEstimator, TransformerMixin):
     """
