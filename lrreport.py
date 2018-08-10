@@ -6,7 +6,7 @@ import numpy as np
 from sklearn.linear_model import LogisticRegression
 
 import liar
-from liar.plotting import NormalCllrEvaluator, ClassifierCllrEvaluator, makeplot
+from liar.plotting import NormalCllrEvaluator, ScoreBasedCllrEvaluator, makeplot_cllr
 
 
 class generate_data:
@@ -33,13 +33,13 @@ def plot_scheidbaarheid(repeat):
 
     generators = [
         NormalCllrEvaluator('baseline', 0, 1, 0, 1),
-        ClassifierCllrEvaluator('logit/fraction', LogisticRegression(), liar.probability_fraction),
-        ClassifierCllrEvaluator('logit/kde', LogisticRegression(), liar.probability_kde),
-        ClassifierCllrEvaluator('logit/gauss', LogisticRegression(), liar.probability_gaussian_mixture),
-        ClassifierCllrEvaluator('logit/copy', LogisticRegression(), liar.probability_copy),
+        ScoreBasedCllrEvaluator('logit/fraction', LogisticRegression(), liar.FractionCalibrator(), []),
+        ScoreBasedCllrEvaluator('logit/kde', LogisticRegression(), liar.KDECalibrator(), []),
+        ScoreBasedCllrEvaluator('logit/gauss', LogisticRegression(), liar.GaussianCalibrator(), []),
+        ScoreBasedCllrEvaluator('logit/copy', LogisticRegression(), liar.DummyCalibrator(), []),
     ]
 
-    makeplot('dx', generators, list(zip(xvalues, generator_args)), savefig='plot_scheidbaarheid.png', show=True)
+    makeplot_cllr('dx', generators, list(zip(xvalues, generator_args)), savefig='plot_scheidbaarheid.png', show=True)
 
 
 def plot_datasize(repeat):
@@ -60,13 +60,13 @@ def plot_datasize(repeat):
 
     generators = [
         NormalCllrEvaluator('baseline', 0, 1, dx, 1),
-        ClassifierCllrEvaluator('logit/fraction', LogisticRegression(), liar.probability_fraction),
-        ClassifierCllrEvaluator('logit/kde', LogisticRegression(), liar.probability_kde),
-        ClassifierCllrEvaluator('logit/gauss', LogisticRegression(), liar.probability_gaussian_mixture),
-        ClassifierCllrEvaluator('logit/copy', LogisticRegression(), liar.probability_copy),
+        ScoreBasedCllrEvaluator('logit/fraction', LogisticRegression(), liar.FractionCalibrator(), []),
+        ScoreBasedCllrEvaluator('logit/kde', LogisticRegression(), liar.KDECalibrator(), []),
+        ScoreBasedCllrEvaluator('logit/gauss', LogisticRegression(), liar.GaussianCalibrator(), []),
+        ScoreBasedCllrEvaluator('logit/copy', LogisticRegression(), liar.DummyCalibrator(), []),
     ]
 
-    makeplot('data size 2^x; {repeat}x'.format(repeat=repeat), generators, list(zip(xvalues, generator_args)), savefig='plot_datasize.png', show=True)
+    makeplot_cllr('data size 2^x; {repeat}x'.format(repeat=repeat), generators, list(zip(xvalues, generator_args)), savefig='plot_datasize.png', show=True)
 
 
 def plot_split(repeat):
@@ -111,13 +111,13 @@ def plot_split(repeat):
 
     generators = [
         NormalCllrEvaluator('baseline', 0, 1, dx, 1),
-        ClassifierCllrEvaluator('logit/fraction', LogisticRegression(), liar.probability_fraction),
-        ClassifierCllrEvaluator('logit/kde', LogisticRegression(), liar.probability_kde),
-        ClassifierCllrEvaluator('logit/gauss', LogisticRegression(), liar.probability_gaussian_mixture),
-        ClassifierCllrEvaluator('logit/copy', LogisticRegression(), liar.probability_copy),
+        ScoreBasedCllrEvaluator('logit/fraction', LogisticRegression(), liar.FractionCalibrator(), []),
+        ScoreBasedCllrEvaluator('logit/kde', LogisticRegression(), liar.KDECalibrator(), []),
+        ScoreBasedCllrEvaluator('logit/gauss', LogisticRegression(), liar.GaussianCalibrator(), []),
+        ScoreBasedCllrEvaluator('logit/copy', LogisticRegression(), liar.DummyCalibrator(), []),
     ]
 
-    makeplot('data splits of {} samples for each class'.format(datasize), generators, experiments, savefig='plot_split.png', show=True)
+    makeplot_cllr('data splits of {} samples for each class'.format(datasize), generators, experiments, savefig='plot_split.png', show=True)
 
 
 if __name__ == '__main__':

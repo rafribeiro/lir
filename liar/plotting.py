@@ -7,7 +7,8 @@ import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 
-from . import *
+from . import lr
+from .util import Xn_to_Xy
 
 
 LOG = logging.getLogger(__name__)
@@ -124,11 +125,11 @@ class NormalCllrEvaluator(AbstractCllrEvaluator):
             self._loc1 = self._loc0 + self._distribution_mean_delta
 
         # sample from H0
-        X0_lr = self._get_lr(class0_test)
+        X0_lr = self._get_lr(class0_test.reshape(-1))
         # sample from H1
-        X1_lr = self._get_lr(class1_test)
+        X1_lr = self._get_lr(class1_test.reshape(-1))
 
-        cllr = calculate_cllr(X0_lr, X1_lr)
+        cllr = lr.calculate_cllr(X0_lr, X1_lr)
         return cllr
 
 
@@ -143,13 +144,13 @@ class ScoreBasedCllrEvaluator(AbstractCllrEvaluator):
     def cllr_kfold(self, n_splits, X0_train, X1_train, X0_test, X1_test):
         for p in self._preprocessors:
             X0_train, X1_train, X0_test, X1_test = process_vector(p, X0_train, X1_train, X0_test, X1_test)
-        cllr = scorebased_cllr_kfold(self._clf, self._pfunc, n_splits, X0_train, X1_train, X0_test, X1_test)
+        cllr = lr.scorebased_cllr_kfold(self._clf, self._pfunc, n_splits, X0_train, X1_train, X0_test, X1_test)
         return cllr
 
     def cllr(self, class0_train, class1_train, class0_calibrate, class1_calibrate, class0_test, class1_test):
         for p in self._preprocessors:
             class0_train, class1_train, class0_calibrate, class1_calibrate, class0_test, class1_test = process_vector(p, class0_train, class1_train, class0_calibrate, class1_calibrate, class0_test, class1_test)
-        cllr = scorebased_cllr(self._clf, self._pfunc, class0_train, class1_train, class0_calibrate, class1_calibrate, class0_test, class1_test)
+        cllr = lr.scorebased_cllr(self._clf, self._pfunc, class0_train, class1_train, class0_calibrate, class1_calibrate, class0_test, class1_test)
         return cllr
 
 
@@ -213,12 +214,12 @@ def makeplot_density(clf, X0_train, X1_train, X0_calibrate, X1_calibrate, calibr
 
     plt.figure(figsize=(20,20), dpi=100)
 
-    clf.fit(*lr.Xn_to_Xy(X0_train, X1_train))
+    clf.fit(*Xn_to_Xy(X0_train, X1_train))
     points0 = lr.apply_scorer(clf, X0_calibrate)
     points1 = lr.apply_scorer(clf, X1_calibrate)
 
     for name, f in calibrators:
-        f.fit(points0, points1)
+        f.fit(*Xn_to_Xy(points0, points1))
 
     x = np.arange(0, 1, .01)
 

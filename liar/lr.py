@@ -1,205 +1,15 @@
 import collections
 import logging
-import math
 
 import numpy as np
 import sklearn
-from sklearn.base import BaseEstimator
-from sklearn.base import TransformerMixin
-from sklearn.linear_model import LogisticRegression
 import sklearn.mixture
+
+from . import calibration
+from .util import Xn_to_Xy, Xy_to_Xn
 
 
 LOG = logging.getLogger(__name__)
-
-
-def Xn_to_Xy(*Xn):
-    X = np.concatenate(Xn)
-    y = np.concatenate([ np.ones((X.shape[0],), dtype=np.int8)*i for i, X in enumerate(Xn) ])
-    return X, y
-
-
-class NormalizedCalibrator(BaseEstimator, TransformerMixin):
-    """
-    Normalizer for any calibration function.
-
-    Scales the probability density function of a calibrator so that the
-    probability mass is 1.
-    """
-
-    def __init__(self, calibrator, add_one=False, sample_size=100, value_range=(0,1)):
-        self.calibrator = calibrator
-        self.add_one = add_one
-        self.value_range = value_range
-        self.step_size = (value_range[1] - value_range[0]) / sample_size
-
-    def fit(self, X0, X1):
-        self.X0n = X0.shape[0]
-        self.X1n = X1.shape[0]
-        self.calibrator.fit(X0, X1)
-        self.calibrator.transform(np.arange(self.value_range[0], self.value_range[1], self.step_size))
-        self.p0mass = np.sum(self.calibrator.p0) / 100
-        self.p1mass = np.sum(self.calibrator.p1) / 100
-
-    def transform(self, X):
-        self.calibrator.transform(X)
-        self.p0 = self.calibrator.p0 / self.p0mass
-        self.p1 = self.calibrator.p1 / self.p1mass
-        if self.add_one:
-            self.p0 = self.X0n / (self.X0n + 1) * self.p0 + 1 / self.X0n
-            self.p1 = self.X1n / (self.X1n + 1) * self.p1 + 1 / self.X1n
-        return self.p1 / self.p0
-
-    def __getattr__(self, name):
-        return getattr(self.calibrator, name)
-
-
-class FractionCalibrator(BaseEstimator, TransformerMixin):
-    """
-    Calculates a likelihood ratio of the distance of a score value to the
-    extremes of its value range.
-    """
-
-    def __init__(self, value_range=(0,1)):
-        self.value_range = value_range
-
-    def fit(self, X0, X1):
-        self._abs_points0 = np.abs(self.value_range[0] - X0)
-        self._abs_points1 = np.abs(self.value_range[1] - X1)
-
-    def density(self, X, class_value, points):
-        X = np.abs(self.value_range[class_value] - X)
-        return (1 + np.array([ points[points >= x].shape[0] for x in X ])) / (1 + len(points))
-
-    def transform(self, X):
-        self.p0 = self.density(X, 0, self._abs_points0)
-        self.p1 = self.density(X, 1, self._abs_points1)
-        return self.p1 / self.p0
-
-
-class KDECalibrator(BaseEstimator, TransformerMixin):
-    """
-    Calculates a likelihood ratio of a score value, provided it is from one of
-    two distributions. Uses kernel density estimation (KDE) for interpolation.
-    """
-
-    def bandwidth_silverman(self, X):
-        """
-        Estimates the optimal bandwidth parameter using Silverman's rule of
-        thumb.
-        """
-        assert len(X) > 0
-        v = math.pow(np.std(X), 5) / len(X) * 4./3
-        return math.pow(v, .2)
-
-    def bandwidth_scott(self, X):
-        """
-        Not implemented.
-        """
-        raise
-
-    def fit(self, X0, X1):
-        bandwidth0 = self.bandwidth_silverman(X0)
-        bandwidth1 = self.bandwidth_silverman(X1)
-
-        X0 = X0.reshape(-1, 1)
-        X1 = X1.reshape(-1, 1)
-        self._kde0 = sklearn.neighbors.KernelDensity(kernel='gaussian', bandwidth=bandwidth0).fit(X0)
-        self._kde1 = sklearn.neighbors.KernelDensity(kernel='gaussian', bandwidth=bandwidth1).fit(X1)
-        self._base_value0 = 1./X0.shape[0]
-        self._base_value1 = 1./X1.shape[0]
-
-    def transform(self, X):
-        X = X.reshape(-1, 1)
-        self.p0 = self._base_value0 + np.exp(self._kde0.score_samples(X))
-        self.p1 = self._base_value1 + np.exp(self._kde1.score_samples(X))
-        return self.p1 / self.p0
-
-
-class LogitCalibrator(BaseEstimator, TransformerMixin):
-    """
-    Calculates a likelihood ratio of a score value, provided it is from one of
-    two distributions. Uses logistic regression for interpolation.
-    """
-
-    def fit(self, X0, X1):
-        self._logit = LogisticRegression(class_weight='balanced')
-        self._logit.fit(*Xn_to_Xy(X0, X1))
-
-    def transform(self, X):
-        X = self._logit.predict_proba(X)[:,1] # probability of class 1
-        self.p0 = (1 - X)
-        self.p1 = X
-        return self.p1 / self.p0
-
-
-class GaussianCalibrator(BaseEstimator, TransformerMixin):
-    """
-    Calculates a likelihood ratio of a score value, provided it is from one of
-    two distributions. Uses a gaussian mixture model for interpolation.
-    """
-
-    def fit(self, X0, X1):
-        X0 = X0.reshape(-1, 1)
-        X1 = X1.reshape(-1, 1)
-        self._model0 = sklearn.mixture.GaussianMixture().fit(X0)
-        self._model1 = sklearn.mixture.GaussianMixture().fit(X1)
-        self._base_value0 = 1. / X0.shape[0]
-        self._base_value1 = 1. / X1.shape[0]
-
-    def transform(self, X):
-        X = X.reshape(-1, 1)
-        self.p0 = self._base_value0 + np.exp(self._model0.score_samples(X))
-        self.p1 = self._base_value1 + np.exp(self._model1.score_samples(X))
-        return self.p1 / self.p0
-
-
-class IsotonicCalibrator(BaseEstimator, TransformerMixin):
-    """
-    Calculates a likelihood ratio of a score value, provided it is from one of
-    two distributions. Uses isotonic regression for interpolation.
-    """
-
-    def __init__(self, add_one=False):
-        self.add_one = add_one
-        self._ir = sklearn.isotonic.IsotonicRegression()
-
-    def fit(self, X0, X1, add_one=None):
-        # prevent extreme LRs
-        if add_one or (add_one is None and self.add_one):
-            X0 = np.append(X0, 1)
-            X1 = np.append(X1, 0)
-
-        X0n = X0.shape[0]
-        X1n = X1.shape[0]
-        X, y = Xn_to_Xy(X0, X1)
-        weight = np.concatenate([ [X1n] * X0n, [X0n] * X1n ])
-        self._ir.fit(X, y, sample_weight=weight)
-
-    def transform(self, X):
-        posterior = self._ir.transform(X)
-
-        self.p0 = (1 - posterior)
-        self.p1 = posterior
-        with np.errstate(divide='ignore'):
-            return self.p1 / self.p0
-
-
-class DummyCalibrator(BaseEstimator, TransformerMixin):
-    """
-    Calculates a likelihood ratio of a score value, provided it is from one of
-    two distributions. No calibration is applied. Instead, the score value is
-    interpreted as a posterior probability of the value being sampled from
-    class 1.
-    """
-    def fit(self, X0, X1):
-        self._base_value0 = 1. / X0.shape[0]
-        self._base_value1 = 1. / X1.shape[0]
-
-    def transform(self, X):
-        self.p0 = self._base_value0 + (1 - X)
-        self.p1 = self._base_value0 + X
-        return self.p1 / self.p0
 
 
 class CalibratedScorer:
@@ -212,7 +22,7 @@ class CalibratedScorer:
         self.scorer.fit(X, y)
         if self.fit_calibrator:
             p = self.scorer.predict_proba(X)
-            self.calibrator.fit(p[y==0,1], p[y==1,1])
+            self.calibrator.fit(p[:,1], y)
 
     def predict_lr(self, X):
         X = self.scorer.predict_proba(X)[:,1]
@@ -228,14 +38,14 @@ class CalibratedScorerCV:
     def fit(self, X, y):
         kf = sklearn.model_selection.StratifiedKFold(n_splits=self.n_splits, shuffle=True)
 
-        class0_calibrate = np.empty([0, 1])
-        class1_calibrate = np.empty([0, 1])
+        Xcal = np.empty([0, 1])
+        ycal = np.empty([0])
         for train_index, cal_index in kf.split(X, y):
             self.scorer.fit(X[train_index], y[train_index])
             p = self.scorer.predict_proba(X[cal_index])
-            class0_calibrate = np.append(class0_calibrate, p[y[cal_index]==0,1])
-            class1_calibrate = np.append(class1_calibrate, p[y[cal_index]==1,1])
-        self.calibrator.fit(class0_calibrate, class1_calibrate)
+            Xcal = np.append(Xcal, p[:,1])
+            ycal = np.append(ycal, y[cal_index])
+        self.calibrator.fit(Xcal, ycal)
 
         self.scorer.fit(X, y)
 
@@ -328,9 +138,10 @@ def calculate_cllr(lr_class0, lr_class1):
 
     cllr, cllr_class0, cllr_class1 = _cllr(lr_class0, lr_class1)
 
-    irc = IsotonicCalibrator()
-    lrmin_class0, lrmin_class1 = irc.fit_transform(lr_class0 / (lr_class0 + 1), lr_class1 / (lr_class1 + 1))
-    cllrmin, cllrmin_class0, cllrmin_class1 = _cllr(lrmin_class0, lrmin_class1)
+    irc = calibration.IsotonicCalibrator()
+    lr, y = Xn_to_Xy(lr_class0 / (lr_class0 + 1), lr_class1 / (lr_class1 + 1))
+    lrmin = irc.fit_transform(lr, y)
+    cllrmin, cllrmin_class0, cllrmin_class1 = _cllr(*Xy_to_Xn(lrmin, y))
 
     return LrStats(avg_llr, avg_llr_class0, avg_llr_class1, avg_p0_class0, avg_p1_class0, avg_p0_class1, avg_p1_class1, cllr_class0, cllr_class1, cllr, lr_class0, lr_class1, cllrmin, cllr - cllrmin)
 
@@ -368,15 +179,19 @@ def scorebased_lr(scorer, calibrator, X0_train, X1_train, X0_calibrate, X1_calib
     float
         A likelihood ratio for `X_disputed`
     """
-    scorer.fit(*Xn_to_Xy(X0_train, X1_train))
-    calibrator.fit(scorer.predict_proba(X0_calibrate)[:,1], scorer.predict_proba(X1_calibrate)[:,1])
+    Xtrain, ytrain = Xn_to_Xy(X0_train, X1_train)
+    scorer.fit(Xtrain, ytrain)
+
+    Xcal, ycal = Xn_to_Xy(X0_calibrate, X1_calibrate)
+    calibrator.fit(scorer.predict_proba(Xcal)[:,1], ycal)
     scorer = CalibratedScorer(scorer, calibrator)
 
     return scorer.predict_lr(X_disputed)
 
 
 def calibrated_cllr(calibrator, class0_calibrate, class1_calibrate, class0_test=None, class1_test=None):
-    calibrator.fit(class0_calibrate, class1_calibrate)
+    Xcal, ycal = Xn_to_Xy(class0_calibrate, class1_calibrate)
+    calibrator.fit(Xcal, ycal)
 
     use_calibration_set_for_test = class0_test is None
     if use_calibration_set_for_test:
