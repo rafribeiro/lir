@@ -20,8 +20,8 @@ def Xy_to_Xn(X, y):
     Xy is a format where all samples are concatenated, with an equal length variable y indicating class."""
     X = np.asarray(X)
     y = np.asarray(y).reshape(-1, 1)
-    assert X.shape[0] == y.shape[0]
+    assert X.shape[0] == y.shape[0], 'dimensions of X and y do not match'
     assert y.shape[1] == 1
     y_uniq = np.unique(y)
-    assert len(y_uniq) == 2
+    assert len(y_uniq) == 2, 'expected two classes; found: {}'.format(y_uniq)
     return [X[(y == yvalue).reshape(-1)] for yvalue in y_uniq]

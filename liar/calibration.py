@@ -1,5 +1,6 @@
 import logging
 import math
+import warnings
 
 import numpy as np
 from sklearn.base import BaseEstimator
@@ -83,13 +84,24 @@ class KDECalibrator(BaseEstimator, TransformerMixin):
     two distributions. Uses kernel density estimation (KDE) for interpolation.
     """
 
+    def __init__(self, bandwidth=None):
+        self.bandwidth = bandwidth
+
     def bandwidth_silverman(self, X):
         """
         Estimates the optimal bandwidth parameter using Silverman's rule of
         thumb.
         """
         assert len(X) > 0
-        v = math.pow(np.std(X), 5) / len(X) * 4. / 3
+
+        std = np.std(X)
+        if std == 0:
+            # can happen eg if std(X) = 0
+            warnings.warn('silverman bandwidth cannot be calculated if standard deviation is 0', RuntimeWarning)
+            LOG.info('found a silverman bandwidth of 0 (using dummy value)')
+            std = 1
+
+        v = math.pow(std, 5) / len(X) * 4. / 3
         return math.pow(v, .2)
 
     def bandwidth_scott(self, X):
@@ -100,11 +112,12 @@ class KDECalibrator(BaseEstimator, TransformerMixin):
 
     def fit(self, X, y):
         X0, X1 = Xy_to_Xn(X, y)
-        bandwidth0 = self.bandwidth_silverman(X0)
-        bandwidth1 = self.bandwidth_silverman(X1)
-
         X0 = X0.reshape(-1, 1)
         X1 = X1.reshape(-1, 1)
+
+        bandwidth0 = self.bandwidth or self.bandwidth_silverman(X0)
+        bandwidth1 = self.bandwidth or self.bandwidth_silverman(X1)
+
         self._kde0 = KernelDensity(kernel='gaussian', bandwidth=bandwidth0).fit(X0)
         self._kde1 = KernelDensity(kernel='gaussian', bandwidth=bandwidth1).fit(X1)
         self._base_value0 = 1. / X0.shape[0]
