@@ -2,6 +2,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import sklearn.isotonic
 
+from . import util
+
 
 def plot(lrs, y, show_scatter=True, on_screen=False, path=None, kw_figure={}):
     llrs = np.log10(lrs)
@@ -51,27 +53,20 @@ class PavLR:
         X: an array of LRs
         y: an array of labels (values 0 or 1)
         """
-        self.ir.fit(self.to_probability(X), y, sample_weight=self.to_weight(y))
+        self.ir.fit(util.to_probability(X), y, sample_weight=self.to_weight(y))
 
     def transform(self, X):
         """
         Arguments:
         X: an array of LRs
         """
-        pav_p = self.ir.transform(self.to_probability(X))
+        pav_p = self.ir.transform(util.to_probability(X))
         return pav_p / (1 - pav_p)
 
     def fit_transform(self, X, y):
-        pav_p = self.ir.fit_transform(self.to_probability(X), y, sample_weight=self.to_weight(y))
+        pav_p = self.ir.fit_transform(util.to_probability(X), y, sample_weight=self.to_weight(y))
         with np.errstate(divide='ignore'):
             return pav_p / (1 - pav_p)
-
-    def to_probability(self, lr):
-        return lr / (1 + lr)
-
-    def to_lr(self, p):
-        with np.errstate(divide='ignore'):
-            return p / (1 - p)
 
     def to_weight(self, y):
         prior = self.prior if self.prior is not None else np.sum(y) / y.size

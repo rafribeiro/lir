@@ -5,6 +5,7 @@ import warnings
 import numpy as np
 from sklearn.base import BaseEstimator
 from sklearn.base import TransformerMixin
+from sklearn.exceptions import NotFittedError
 from sklearn.isotonic import IsotonicRegression
 from sklearn.linear_model import LogisticRegression
 from sklearn.mixture import GaussianMixture
@@ -12,6 +13,9 @@ from sklearn.neighbors import KernelDensity
 
 from .util import Xy_to_Xn, Xn_to_Xy
 
+
+from .bayeserror import elub
+from .util import Xy_to_Xn, Xn_to_Xy
 
 LOG = logging.getLogger(__name__)
 
@@ -59,8 +63,9 @@ class FractionCalibrator(BaseEstimator, TransformerMixin):
     extremes of its value range.
     """
 
-    def __init__(self, value_range=(0, 1)):
+    def __init__(self, value_range=(0, 1), add_one=False):
         self.value_range = value_range
+        self.add_one = add_one
 
     def fit(self, X, y):
         X0, X1 = Xy_to_Xn(X, y)
@@ -70,15 +75,27 @@ class FractionCalibrator(BaseEstimator, TransformerMixin):
 
     def density(self, X, class_value, points):
         X = np.abs(self.value_range[class_value] - X)
-        return (1 + np.array([points[points >= x].shape[0] for x in X])) / (1 + len(points))
+
+
+        numerator = np.array([points[points >= x].shape[0] for x in X])
+        denominator = len(points)
+
+        # prevent Extreme LRs
+        if self.add_one:
+            numerator = 1 + numerator
+            denominator = 1 + denominator
+        return numerator / denominator
 
     def transform(self, X):
+        X = np.array(X)
         self.p0 = self.density(X, 0, self._abs_points0)
         self.p1 = self.density(X, 1, self._abs_points1)
-        return self.p1 / self.p0
+
+        with np.errstate(divide='ignore'):
+            return self.p1 / self.p0
 
 
-class KDECalibrator(BaseEstimator, TransformerMixin):
+class KDECalibrator(BaseEstimator, TransformerMixin, ):
     """
     Calculates a likelihood ratio of a score value, provided it is from one of
     two distributions. Uses kernel density estimation (KDE) for interpolation.
@@ -86,6 +103,8 @@ class KDECalibrator(BaseEstimator, TransformerMixin):
 
     def __init__(self, bandwidth=None):
         self.bandwidth = bandwidth
+        self._kde0 = None
+        self._kde1 = None
 
     def bandwidth_silverman(self, X):
         """
@@ -120,14 +139,14 @@ class KDECalibrator(BaseEstimator, TransformerMixin):
 
         self._kde0 = KernelDensity(kernel='gaussian', bandwidth=bandwidth0).fit(X0)
         self._kde1 = KernelDensity(kernel='gaussian', bandwidth=bandwidth1).fit(X1)
-        self._base_value0 = 1. / X0.shape[0]
-        self._base_value1 = 1. / X1.shape[0]
         return self
 
     def transform(self, X):
+        assert self._kde0 is not None, "KDECalibrator.transform() called before fit"
+
         X = X.reshape(-1, 1)
-        self.p0 = self._base_value0 + np.exp(self._kde0.score_samples(X))
-        self.p1 = self._base_value1 + np.exp(self._kde1.score_samples(X))
+        self.p0 = np.exp(self._kde0.score_samples(X))
+        self.p1 = np.exp(self._kde1.score_samples(X))
         return self.p1 / self.p0
 
 
@@ -162,14 +181,12 @@ class GaussianCalibrator(BaseEstimator, TransformerMixin):
         X1 = X1.reshape(-1, 1)
         self._model0 = GaussianMixture().fit(X0)
         self._model1 = GaussianMixture().fit(X1)
-        self._base_value0 = 1. / X0.shape[0]
-        self._base_value1 = 1. / X1.shape[0]
         return self
 
     def transform(self, X):
         X = X.reshape(-1, 1)
-        self.p0 = self._base_value0 + np.exp(self._model0.score_samples(X))
-        self.p1 = self._base_value1 + np.exp(self._model1.score_samples(X))
+        self.p0 = np.exp(self._model0.score_samples(X))
+        self.p1 = np.exp(self._model1.score_samples(X))
         return self.p1 / self.p0
 
 
@@ -221,13 +238,86 @@ class DummyCalibrator(BaseEstimator, TransformerMixin):
     """
 
     def fit(self, X, y=None, **fit_params):
-        X0, X1 = Xy_to_Xn(X, y)
-        self._base_value0 = 1. / X0.shape[0]
-        self._base_value1 = 1. / X1.shape[0]
-
         return self
 
     def transform(self, X):
-        self.p0 = self._base_value0 + (1 - X)
-        self.p1 = self._base_value0 + X
-        return self.p1 / self.p0
+        self.p0 = (1 - X)
+        self.p1 =  X
+        return np.array(
+            self.p1 / self.p0).flatten()  # TODO: this conversion may be unnecessary unless bad input is given
+
+
+class ELUBbounder(BaseEstimator, TransformerMixin):
+    """
+    Class that, given an LR system, outputs the same LRs as the system but bounded by the Empirical Upper and Lower
+    Bounds as described in
+    P. Vergeer, A. van Es, A. de Jongh, I. Alberink, R.D. Stoel,
+    Numerical likelihood ratios outputted by LR systems are often based on extrapolation:
+    when to stop extrapolating?
+    Sci. Justics 56 (2016) 482-491
+    """
+
+    # MATLAB code from the authors:
+
+    # clear all; close all;
+    # llrs_hp=csvread('...');
+    # llrs_hd=csvread('...');
+    # start=-7; finish=7;
+    # rho=start:0.01:finish; theta=10.^rho;
+    # nbe=[];
+    # for k=1:length(rho)
+    #     if rho(k)<0
+    #         llrs_hp=[llrs_hp;rho(k)];
+    #         nbe=[nbe;(theta(k)^(-1))*mean(llrs_hp<=rho(k))+...
+    #             mean(llrs_hd>rho(k))];
+    #     else
+    #         llrs_hd=[llrs_hd;rho(k)];
+    #         nbe=[nbe;theta(k)*mean(llrs_hd>=rho(k))+...
+    #             mean(llrs_hp<rho(k))];
+    #     end
+    # end
+    # plot(rho,-log10(nbe)); hold on;
+    # plot([start finish],[0 0]);
+    # a=rho(-log10(nbe)>0);
+    # empirical_bounds=[min(a) max(a)]
+
+    def __init__(self, first_step_calibrator, also_fit_calibrator=True):
+        """
+        a calibrator should be provided (optionally already fitted to data). This calibrator is called on scores,
+        the resulting LRs are then bounded. If also_fit_calibrator, the first step calibrator will be fit on the same
+        data used to derive the ELUB bounds
+        :param first_step_calibrator: the calibrator to use. Should already have been fitted if also_fit_calibrator is False
+        :param also_fit_calibrator: whether to also fit the first step calibrator when calling fit
+        """
+
+        self.first_step_calibrator = first_step_calibrator
+        self.also_fit_calibrator = also_fit_calibrator
+        self._lower_lr_bound = None
+        self._upper_lr_bound = None
+        if not also_fit_calibrator:
+            # check the model was fitted.
+            try:
+                first_step_calibrator.transform(0.5)
+            except NotFittedError:
+                print('calibrator should have been fit when setting also_fit_calibrator = False!')
+
+    def fit(self, X, y):
+        """
+        assuming that y=1 corresponds to Hp, y=0 to Hd
+        """
+        if self.also_fit_calibrator:
+            self.first_step_calibrator.fit(X,y)
+        lrs  = self.first_step_calibrator.transform(X)
+
+        y = np.asarray(y).squeeze()
+        self._lower_lr_bound, self._upper_lr_bound = elub(lrs, y, add_misleading=1)
+
+    def transform(self, X):
+        """
+        a transform entails calling the first step calibrator and applying the bounds found
+        """
+        unadjusted_lrs = np.array(self.first_step_calibrator.transform(X))
+        lower_adjusted_lrs = np.where(self._lower_lr_bound < unadjusted_lrs, unadjusted_lrs, self._lower_lr_bound)
+        adjusted_lrs = np.where(self._upper_lr_bound > lower_adjusted_lrs, lower_adjusted_lrs, self._upper_lr_bound)
+        return adjusted_lrs
+

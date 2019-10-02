@@ -1,8 +1,8 @@
 import numpy as np
 import unittest
 
-from liar.calibration import IsotonicCalibrator
-from liar.util import Xn_to_Xy, Xy_to_Xn
+from lir.calibration import IsotonicCalibrator
+from lir.util import Xn_to_Xy, Xy_to_Xn
 import math
 
 
