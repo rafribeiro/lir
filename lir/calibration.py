@@ -63,9 +63,8 @@ class FractionCalibrator(BaseEstimator, TransformerMixin):
     extremes of its value range.
     """
 
-    def __init__(self, value_range=(0, 1), add_one=False):
+    def __init__(self, value_range=(0, 1)):
         self.value_range = value_range
-        self.add_one = add_one
 
     def fit(self, X, y):
         X0, X1 = Xy_to_Xn(X, y)
@@ -76,14 +75,8 @@ class FractionCalibrator(BaseEstimator, TransformerMixin):
     def density(self, X, class_value, points):
         X = np.abs(self.value_range[class_value] - X)
 
-
         numerator = np.array([points[points >= x].shape[0] for x in X])
         denominator = len(points)
-
-        # prevent Extreme LRs
-        if self.add_one:
-            numerator = 1 + numerator
-            denominator = 1 + denominator
         return numerator / denominator
 
     def transform(self, X):
@@ -243,8 +236,7 @@ class DummyCalibrator(BaseEstimator, TransformerMixin):
     def transform(self, X):
         self.p0 = (1 - X)
         self.p1 =  X
-        return np.array(
-            self.p1 / self.p0).flatten()  # TODO: this conversion may be unnecessary unless bad input is given
+        return self.p1 / self.p0
 
 
 class ELUBbounder(BaseEstimator, TransformerMixin):
@@ -255,7 +247,6 @@ class ELUBbounder(BaseEstimator, TransformerMixin):
     Numerical likelihood ratios outputted by LR systems are often based on extrapolation:
     when to stop extrapolating?
     Sci. Justics 56 (2016) 482-491
-    """
 
     # MATLAB code from the authors:
 
@@ -280,6 +271,7 @@ class ELUBbounder(BaseEstimator, TransformerMixin):
     # plot([start finish],[0 0]);
     # a=rho(-log10(nbe)>0);
     # empirical_bounds=[min(a) max(a)]
+    """
 
     def __init__(self, first_step_calibrator, also_fit_calibrator=True):
         """
