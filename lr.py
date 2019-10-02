@@ -38,7 +38,7 @@ class Data:
 
     def generate_lrs(self, n):
         gen = lir.generators.NormalGenerator(0., 1., 1., 1.)
-        #gen = liar.generators.RandomFlipper(gen, .01)
+        #gen = lir.generators.RandomFlipper(gen, .01)
         self.lrs, self.y = gen.sample_lrs(n//2, n//2)
 
     def breath_lrs(self):
