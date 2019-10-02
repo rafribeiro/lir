@@ -3,10 +3,10 @@ import unittest
 
 from sklearn.linear_model import LogisticRegression
 
-from liar.calibration import FractionCalibrator
-from liar.lr import calculate_cllr
-from liar.lr import scorebased_cllr
-from liar.util import Xy_to_Xn, Xn_to_Xy
+from lir.calibration import FractionCalibrator
+from lir.lr import calculate_cllr
+from lir.lr import scorebased_cllr
+from lir.util import Xy_to_Xn, Xn_to_Xy
 
 
 class TestLR(unittest.TestCase):

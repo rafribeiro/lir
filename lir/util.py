@@ -25,3 +25,21 @@ def Xy_to_Xn(X, y):
     y_uniq = np.unique(y)
     assert len(y_uniq) == 2, 'expected two classes; found: {}'.format(y_uniq)
     return [X[(y == yvalue).reshape(-1)] for yvalue in y_uniq]
+
+
+def to_probability(odds):
+    """
+    Returns
+       1                , for odds values of inf
+       odds / (1 + odds), otherwise
+    """
+    inf_values = odds == np.inf
+    with np.errstate(invalid='ignore'):
+        p = np.divide(odds, (1 + odds))
+    p[inf_values] = 1
+    return p
+
+
+def to_odds(p):
+    with np.errstate(divide='ignore'):
+        return p / (1 - p)

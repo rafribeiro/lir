@@ -1,4 +1,6 @@
 matplotlib
+numpy
+pymc3
 scipy
 sklearn
 tqdm
