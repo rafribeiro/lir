@@ -311,6 +311,7 @@ class ELUBbounder(BaseEstimator, TransformerMixin):
 
         y = np.asarray(y).squeeze()
         self._lower_lr_bound, self._upper_lr_bound = elub(lrs, y, add_misleading=1)
+        return self
 
     def transform(self, X):
         """
