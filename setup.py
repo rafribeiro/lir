@@ -6,7 +6,7 @@ from setuptools import setup
 
 package_dir = os.path.dirname(__file__)
 requirements_file_path = os.path.join(os.path.dirname(__file__), 'requirements.txt')
-print(package_dir)
+
 with open(requirements_file_path, 'r') as f:
     packages = [str(f) for f in f.readlines()]
 
