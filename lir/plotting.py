@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 
-from . import lr
+from . import lr, CalibratedScorer, Xy_to_Xn
 from .util import Xn_to_Xy
 
 
@@ -304,5 +304,43 @@ def makeplot_accuracy(scorer, density_function, X0_train, X1_train, X0_calibrate
 
     if savefig is not None:
         plt.savefig(savefig)
+    if show or savefig is None:
+        plt.show()
+
+
+def plot_lr_distributions(lr_system: CalibratedScorer, X, y, savefig=None, show=None):
+    """
+    plots the 10log lrs generated for the two hypotheses by the fitted system
+    """
+    plt.figure(figsize=(10, 10), dpi=100)
+    log_lrs = np.log10(lr_system.predict_lr(X))
+    points0, points1 = Xy_to_Xn(log_lrs, y)
+    plt.hist(points0, bins=20, alpha=.25, density=True)
+    plt.hist(points1, bins=20, alpha=.25, density=True)
+    plt.xlabel('10log LR')
+    if savefig is not None:
+        plt.savefig(savefig)
+        plt.close()
+    if show or savefig is None:
+        plt.show()
+
+
+def plot_calibration(lr_system: CalibratedScorer, X, y, savefig=None, show=None):
+    """
+    plots the distributions of scores calculated by the (fitted) lr_system, as well as the fitted score distributions/
+    score-to-posterior map
+    """
+    plt.figure(figsize=(10, 10), dpi=100)
+    scores = lr.apply_scorer(lr_system.scorer, X)
+    x = np.arange(0, 1, .01)
+    lr_system.calibrator.transform(x)
+    points0, points1 = Xy_to_Xn(scores, y)
+    plt.hist(points0, bins=20, alpha=.25, density=True, label='class 0')
+    plt.hist(points1, bins=20, alpha=.25, density=True, label='class 1')
+    plt.plot(x, lr_system.calibrator.p1, label='fit class 1')
+    plt.plot(x, lr_system.calibrator.p0, label='fit class 0')
+    if savefig is not None:
+        plt.savefig(savefig)
+        plt.close()
     if show or savefig is None:
         plt.show()

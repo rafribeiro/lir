@@ -43,3 +43,8 @@ def to_probability(odds):
 def to_odds(p):
     with np.errstate(divide='ignore'):
         return p / (1 - p)
+
+
+def to_log_odds(p):
+    odds = to_odds(p)
+    return np.nan_to_num(np.log10(odds))
