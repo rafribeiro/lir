@@ -156,7 +156,7 @@ class LogitCalibrator(BaseEstimator, TransformerMixin):
         return self
 
     def transform(self, X):
-        X = self._logit.predict_proba(X)[:, 1]  # probability of class 1
+        X = self._logit.predict_proba(X.reshape(-1, 1))[:, 1]  # probability of class 1
         self.p0 = (1 - X)
         self.p1 = X
         return self.p1 / self.p0
