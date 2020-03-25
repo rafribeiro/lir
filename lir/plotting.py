@@ -325,20 +325,20 @@ def plot_lr_distributions(lr_system: CalibratedScorer, X, y, savefig=None, show=
         plt.show()
 
 
-def plot_calibration(lr_system: CalibratedScorer, X, y, savefig=None, show=None):
+def plot_score_distribution_and_calibrator_fit(calibrator, scores, y, savefig=None, show=None):
     """
     plots the distributions of scores calculated by the (fitted) lr_system, as well as the fitted score distributions/
     score-to-posterior map
+    (Note - for ELUBbounder calibrator is the firststepcalibrator)
     """
     plt.figure(figsize=(10, 10), dpi=100)
-    scores = lr.apply_scorer(lr_system.scorer, X)
     x = np.arange(0, 1, .01)
-    lr_system.calibrator.transform(x)
+    calibrator.transform(x)
     points0, points1 = Xy_to_Xn(scores, y)
     plt.hist(points0, bins=20, alpha=.25, density=True, label='class 0')
     plt.hist(points1, bins=20, alpha=.25, density=True, label='class 1')
-    plt.plot(x, lr_system.calibrator.p1, label='fit class 1')
-    plt.plot(x, lr_system.calibrator.p0, label='fit class 0')
+    plt.plot(x, calibrator.p1, label='fit class 1')
+    plt.plot(x, calibrator.p0, label='fit class 0')
     if savefig is not None:
         plt.savefig(savefig)
         plt.close()

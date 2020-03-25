@@ -6,7 +6,7 @@ import sklearn
 import sklearn.mixture
 
 from . import calibration
-from .util import Xn_to_Xy, Xy_to_Xn, to_log_odds
+from .util import Xn_to_Xy, Xy_to_Xn
 
 
 LOG = logging.getLogger(__name__)
