@@ -13,16 +13,20 @@ LOG = logging.getLogger(__name__)
 
 
 class CalibratedScorer:
-    def __init__(self, scorer, calibrator, fit_calibrator=False):
+    def __init__(self, scorer, calibrator):
         self.scorer = scorer
         self.calibrator = calibrator
-        self.fit_calibrator = fit_calibrator
 
     def fit(self, X, y):
+        self.fit_scorer(X, y)
+        self.fit_calibrator(X, y)
+
+    def fit_scorer(self, X, y):
         self.scorer.fit(X, y)
-        if self.fit_calibrator:
-            p = self.scorer.predict_proba(X)
-            self.calibrator.fit(p[:,1], y)
+
+    def fit_calibrator(self, X, y):
+        p = self.scorer.predict_proba(X)
+        self.calibrator.fit(p[:, 1], y)
 
     def predict_lr(self, X):
         X = self.scorer.predict_proba(X)[:,1]
