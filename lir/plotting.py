@@ -317,20 +317,20 @@ def plot_pav(lrs, y, show_scatter=True, savefig=None, show=None, kw_figure={}):
     Parameters
     ----------
     lrs : numpy array of floats
-        Pre-calibrated likelihood ratios
+        Likelihood ratios before PAV transform
     y : numpy array
         Labels corresponding to lrs (0 for Hd and 1 for Hp)
     show_scatter : boolean
         If True, show individual LRs
-    on_screen : boolean
-        If True, show the plot on screen
-    path : str
+    savefig : str
         If not None, write the figure to a file
+    show : boolean
+        If True, show the plot on screen
     kw_figure : dict
         Keyword arguments that are passed to matplotlib.pyplot.figure()
     """
     pav = IsotonicCalibrator()
-    pav_lrs = pav.fit_transform(util.to_probability(lrs), y)
+    pav_lrs = pav.fit_transform(lrs, y)
 
     with np.errstate(divide='ignore'):
         llrs = np.log10(lrs)
@@ -344,7 +344,7 @@ def plot_pav(lrs, y, show_scatter=True, savefig=None, show=None, kw_figure={}):
 
     line_x = np.arange(*xrange, .01)
     with np.errstate(divide='ignore'):
-        line_y = np.log10(pav.transform(util.to_probability(10**line_x)))
+        line_y = np.log10(pav.transform(10**line_x))
     plt.plot(line_x, line_y)  # pre-/post-calibrated lr fit
 
     if show_scatter:

@@ -36,7 +36,7 @@ def cllr(lrs, y):
 
 def cllr_min(lrs, y):
     """
-    Calculates the discriminative power for a series of likelihood ratios.
+    Estimates the discriminative power from a collection of likelihood ratios.
 
     Parameters
     ----------

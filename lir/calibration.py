@@ -203,7 +203,9 @@ class IsotonicCalibrator(BaseEstimator, TransformerMixin):
         return self
 
     def transform(self, X):
-        return to_odds(self._ir.transform(X))
+        self.p1 = self._ir.transform(X)
+        self.p0 = 1 - self.p1
+        return to_odds(self.p1)
 
 
 class DummyCalibrator(BaseEstimator, TransformerMixin):

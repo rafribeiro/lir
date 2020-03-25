@@ -17,7 +17,7 @@ See:
 import matplotlib.pyplot as plt
 import numpy as np
 
-from . import pav
+from .calibration import IsotonicCalibrator
 from . import util
 
 
@@ -56,7 +56,7 @@ def plot(lrs, y, log_prior_odds_range=None, on_screen=False, path=None, kw_figur
     plt.plot(log_prior_odds, calculate_ece(lrs, y, util.to_probability(prior_odds)), linestyle='-', label='LRs')
 
     # plot PAV LRs
-    pav_lrs = pav.PavLR().fit_transform(lrs, y)
+    pav_lrs = IsotonicCalibrator().fit_transform(util.to_probability(lrs), y)
     plt.plot(log_prior_odds, calculate_ece(pav_lrs, y, util.to_probability(prior_odds)), linestyle='--', label='PAV LRs')
 
     plt.xlabel("prior log10 odds")

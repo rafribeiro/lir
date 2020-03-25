@@ -27,7 +27,7 @@ X_train, X_test, y_train, y_test = train_test_split(X, y)
 # initialize a scorer and a calibrator
 scorer = LogisticRegression(solver='lbfgs')  # choose any sklearn style classifier
 calibrator = lir.KDECalibrator()  # use plain KDE for calibration
-calibrated_scorer = lir.CalibratedScorer(scorer, calibrator, fit_calibrator=True)
+calibrated_scorer = lir.CalibratedScorer(scorer, calibrator)
 
 # fit and predict
 calibrated_scorer.fit(X_train, y_train)
@@ -38,7 +38,8 @@ print('The log likelihood ratio cost is', lir.cllr(lrs_test, y_test), '(lower is
 print('The discriminative power is', lir.cllr_min(lrs_test, y_test), '(lower is better)')
 
 # plot calibration
-lir.plot_pav(lrs_test, y_test, on_screen=True)
+import lir.plotting
+lir.plotting.plot_pav(lrs_test, y_test)
 ```
 
 The log likelihood ratio cost (CLLR) may be used as a metric of performance.

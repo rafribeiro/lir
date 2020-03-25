@@ -6,6 +6,7 @@ import logging
 import numpy as np
 
 import lir
+import lir.plotting
 
 
 DEFAULT_LOGLEVEL = logging.WARNING
@@ -48,7 +49,7 @@ class Data:
         raise ValueError('not implemented')
 
     def plot_isotonic(self):
-        lir.pav.plot(self.lrs, self.y, on_screen=True)
+        lir.plotting.plot_pav(self.lrs, self.y)
 
     def plot_ece(self):
         lir.ece.plot(self.lrs, self.y, on_screen=True)
