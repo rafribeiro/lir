@@ -1,12 +1,11 @@
-import collections
 import logging
 
 import numpy as np
 import sklearn
 import sklearn.mixture
 
-from . import calibration
-from .util import Xn_to_Xy, Xy_to_Xn
+from .metrics import calculate_cllr
+from .util import Xn_to_Xy, LR
 
 
 LOG = logging.getLogger(__name__)
@@ -54,9 +53,6 @@ class CalibratedScorerCV:
         return self.calibrator.transform(scores)
 
 
-LR = collections.namedtuple('LR', ['lr', 'p0', 'p1'])
-
-
 def calibrate_lr(point, calibrator):
     """
     Calculates a calibrated likelihood ratio (LR).
@@ -79,71 +75,6 @@ def calibrate_lr(point, calibrator):
     """
     lr = calibrator.transform(np.array(point))[0]
     return LR(lr, calibrator.p0[0], calibrator.p1[0])
-
-
-LrStats = collections.namedtuple('LrStats', ['avg_llr', 'avg_llr_class0', 'avg_llr_class1', 'avg_p0_class0', 'avg_p1_class0', 'avg_p0_class1', 'avg_p1_class1', 'cllr_class0', 'cllr_class1', 'cllr', 'lr_class0', 'lr_class1', 'cllr_min', 'cllr_cal'])
-
-
-def calculate_cllr(lr_class0, lr_class1):
-    """
-    Calculates a log likelihood ratio cost (C_llr) for a series of likelihood
-    ratios.
-
-    Parameters
-    ----------
-    lr_class0 : list of float
-        Likelihood ratios which are calculated for measurements which are
-        sampled from class 0.
-    lr_class1 : list of float
-        Likelihood ratios which are calculated for measurements which are
-        sampled from class 1.
-
-    Returns
-    -------
-    LrStats
-        Likelihood ratio statistics.
-    """
-    assert len(lr_class0) > 0
-    assert len(lr_class1) > 0
-
-    def avg(*args):
-        return sum(args) / len(args)
-
-    def _cllr(lr0, lr1):
-        with np.errstate(divide='ignore'):
-            cllr0 = np.mean(np.log2(1 + lr0))
-            cllr1 = np.mean(np.log2(1 + 1/lr1))
-            return avg(cllr0, cllr1), cllr0, cllr1
-
-    if type(lr_class0[0]) == LR:
-        avg_p0_class0 = avg(*[lr.p0 for lr in lr_class0])
-        avg_p1_class0 = avg(*[lr.p1 for lr in lr_class0])
-        avg_p0_class1 = avg(*[lr.p0 for lr in lr_class1])
-        avg_p1_class1 = avg(*[lr.p1 for lr in lr_class1])
-        lr_class0 = np.array([ lr.lr for lr in lr_class0 ])
-        lr_class1 = np.array([ lr.lr for lr in lr_class1 ])
-    else:
-        if type(lr_class0) == list:
-            lr_class0 = np.array(lr_class0)
-            lr_class1 = np.array(lr_class1)
-
-        avg_p0_class0 = None
-        avg_p1_class0 = None
-        avg_p0_class1 = None
-        avg_p1_class1 = None
-
-    avg_llr_class0 = np.mean(np.log2(1/lr_class0))
-    avg_llr_class1 = np.mean(np.log2(lr_class1))
-    avg_llr = avg(avg_llr_class0, avg_llr_class1)
-
-    cllr, cllr_class0, cllr_class1 = _cllr(lr_class0, lr_class1)
-
-    irc = calibration.IsotonicCalibrator()
-    lr, y = Xn_to_Xy(lr_class0 / (lr_class0 + 1), lr_class1 / (lr_class1 + 1))  # translate LRs to range 0..1
-    lrmin = irc.fit_transform(lr, y)
-    cllrmin, cllrmin_class0, cllrmin_class1 = _cllr(*Xy_to_Xn(lrmin, y))
-
-    return LrStats(avg_llr, avg_llr_class0, avg_llr_class1, avg_p0_class0, avg_p1_class0, avg_p0_class1, avg_p1_class1, cllr_class0, cllr_class1, cllr, lr_class0, lr_class1, cllrmin, cllr - cllrmin)
 
 
 def apply_scorer(scorer, X):

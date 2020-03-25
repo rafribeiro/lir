@@ -11,11 +11,8 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.mixture import GaussianMixture
 from sklearn.neighbors import KernelDensity
 
-from .util import Xy_to_Xn, Xn_to_Xy
-
-
 from .bayeserror import elub
-from .util import Xy_to_Xn, Xn_to_Xy
+from .util import Xy_to_Xn, to_odds
 
 LOG = logging.getLogger(__name__)
 
@@ -194,32 +191,19 @@ class IsotonicCalibrator(BaseEstimator, TransformerMixin):
         self._ir = IsotonicRegression()
 
     def fit(self, X, y, **fit_params):
-        X0, X1 = Xy_to_Xn(X, y)
-
         # prevent extreme LRs
         if ('add_one' in fit_params and fit_params['add_one']) or self.add_one:
-            X0 = np.append(X0, 1)
-            X1 = np.append(X1, 0)
+            X = np.append(X, [1, 0])
+            y = np.append(y, [0, 1])
 
-        X0n = X0.shape[0]
-        X1n = X1.shape[0]
-        X, y = Xn_to_Xy(X0, X1)
-
-        weight = np.concatenate([[X1n] * X0n, [X0n] * X1n])
+        prior = np.sum(y) / y.size
+        weight = y * (1 - prior) + (1 - y) * prior
         self._ir.fit(X, y, sample_weight=weight)
 
         return self
 
     def transform(self, X):
-        if isinstance(X, np.matrix):
-            X = X.A1
-
-        posterior = self._ir.transform(X)
-
-        self.p0 = (1 - posterior)
-        self.p1 = posterior
-        with np.errstate(divide='ignore'):
-            return self.p1 / self.p0
+        return to_odds(self._ir.transform(X))
 
 
 class DummyCalibrator(BaseEstimator, TransformerMixin):

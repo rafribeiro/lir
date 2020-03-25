@@ -8,6 +8,8 @@ from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 
 from . import lr
+from . import util
+from .calibration import IsotonicCalibrator
 from .util import Xn_to_Xy
 
 
@@ -306,3 +308,56 @@ def makeplot_accuracy(scorer, density_function, X0_train, X1_train, X0_calibrate
         plt.savefig(savefig)
     if show or savefig is None:
         plt.show()
+
+
+def plot_pav(lrs, y, show_scatter=True, on_screen=False, path=None, kw_figure={}):
+    """
+    Generates a plot of pre- versus post-calibrated LRs using Pool Adjacent Violators (PAV).
+
+    Parameters
+    ----------
+    lrs : numpy array of floats
+        Pre-calibrated likelihood ratios
+    y : numpy array
+        Labels corresponding to lrs (0 for Hd and 1 for Hp)
+    show_scatter : boolean
+        If True, show individual LRs
+    on_screen : boolean
+        If True, show the plot on screen
+    path : str
+        If not None, write the figure to a file
+
+    Keywords
+    --------
+    Any keyword arguments are passed to matplotlib.pyplot.figure()
+    """
+    pav = IsotonicCalibrator()
+    pav_lrs = pav.fit_transform(util.to_probability(lrs), y)
+
+    with np.errstate(divide='ignore'):
+        llrs = np.log10(lrs)
+        pav_llrs = np.log10(pav_lrs)
+
+    xrange = [llrs.min() - .5, llrs.max() + .5]
+
+    fig = plt.figure(**kw_figure)
+    plt.axis(xrange + xrange)
+    plt.plot(xrange, xrange)  # rechte lijn door de oorsprong
+
+    line_x = np.arange(*xrange, .01)
+    with np.errstate(divide='ignore'):
+        line_y = np.log10(pav.transform(util.to_probability(10**line_x)))
+    plt.plot(line_x, line_y)  # pre-/post-calibrated lr fit
+
+    if show_scatter:
+        plt.scatter(llrs, pav_llrs)  # scatter plot of measured lrs
+
+    plt.xlabel("pre-calibrated 10log(lr)")
+    plt.ylabel("post-calibrated 10log(lr)")
+    plt.grid(True, linestyle=':')
+    if on_screen:
+        plt.show()
+    if path is not None:
+        plt.savefig(path)
+
+    plt.close(fig)

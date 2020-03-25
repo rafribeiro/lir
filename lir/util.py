@@ -1,4 +1,9 @@
+import collections
+
 import numpy as np
+
+
+LR = collections.namedtuple('LR', ['lr', 'p0', 'p1'])
 
 
 def Xn_to_Xy(*Xn):
@@ -29,7 +34,10 @@ def Xy_to_Xn(X, y):
 
 def to_probability(odds):
     """
+    Converts odds to a probability
+
     Returns
+    -------
        1                , for odds values of inf
        odds / (1 + odds), otherwise
     """
@@ -41,5 +49,8 @@ def to_probability(odds):
 
 
 def to_odds(p):
+    """
+    Converts a probability to odds
+    """
     with np.errstate(divide='ignore'):
         return p / (1 - p)
