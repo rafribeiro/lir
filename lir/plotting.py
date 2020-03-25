@@ -310,7 +310,7 @@ def makeplot_accuracy(scorer, density_function, X0_train, X1_train, X0_calibrate
         plt.show()
 
 
-def plot_pav(lrs, y, show_scatter=True, on_screen=False, path=None, kw_figure={}):
+def plot_pav(lrs, y, show_scatter=True, savefig=None, show=None, kw_figure={}):
     """
     Generates a plot of pre- versus post-calibrated LRs using Pool Adjacent Violators (PAV).
 
@@ -326,10 +326,8 @@ def plot_pav(lrs, y, show_scatter=True, on_screen=False, path=None, kw_figure={}
         If True, show the plot on screen
     path : str
         If not None, write the figure to a file
-
-    Keywords
-    --------
-    Any keyword arguments are passed to matplotlib.pyplot.figure()
+    kw_figure : dict
+        Keyword arguments that are passed to matplotlib.pyplot.figure()
     """
     pav = IsotonicCalibrator()
     pav_lrs = pav.fit_transform(util.to_probability(lrs), y)
@@ -355,9 +353,10 @@ def plot_pav(lrs, y, show_scatter=True, on_screen=False, path=None, kw_figure={}
     plt.xlabel("pre-calibrated 10log(lr)")
     plt.ylabel("post-calibrated 10log(lr)")
     plt.grid(True, linestyle=':')
-    if on_screen:
+
+    if savefig is not None:
+        plt.savefig(savefig)
+    if show or savefig is None:
         plt.show()
-    if path is not None:
-        plt.savefig(path)
 
     plt.close(fig)
