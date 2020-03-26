@@ -4,7 +4,7 @@ import numpy as np
 import sklearn
 import sklearn.mixture
 
-from .metrics import calculate_cllr
+from .metrics import calculate_lr_statistics
 from .util import Xn_to_Xy, LR
 
 
@@ -135,7 +135,7 @@ def calibrated_cllr(calibrator, class0_calibrate, class1_calibrate, class0_test=
     lrs0 = [ LR(*stats) for stats in zip(lrs0, calibrator.p0, calibrator.p1) ]
     lrs1 = [ LR(*stats) for stats in zip(lrs1, calibrator.p0, calibrator.p1) ]
 
-    return calculate_cllr(lrs0, lrs1)
+    return calculate_lr_statistics(lrs0, lrs1)
 
 
 def scorebased_cllr(scorer, calibrator, X0_train, X1_train, X0_calibrate, X1_calibrate, X0_test=None, X1_test=None):
@@ -205,4 +205,4 @@ def scorebased_cllr_kfold(scorer, calibrator, n_splits, X0_train, X1_train, X0_t
     lrs0 = [ LR(*stats) for stats in zip(lrs0, calibrator.p0, calibrator.p1) ]
     lrs1 = [ LR(*stats) for stats in zip(lrs1, calibrator.p0, calibrator.p1) ]
 
-    return calculate_cllr(lrs0, lrs1)
+    return calculate_lr_statistics(lrs0, lrs1)

@@ -8,7 +8,7 @@ from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 
 from . import lr
-from . import util
+from .metrics import calculate_lr_statistics
 from .calibration import IsotonicCalibrator
 from .util import Xn_to_Xy
 
@@ -131,7 +131,7 @@ class NormalCllrEvaluator(AbstractCllrEvaluator):
         # sample from H1
         X1_lr = self._get_lr(class1_test.reshape(-1))
 
-        cllr = lr.calculate_cllr(X0_lr, X1_lr)
+        cllr = calculate_lr_statistics(X0_lr, X1_lr)
         return cllr
 
 

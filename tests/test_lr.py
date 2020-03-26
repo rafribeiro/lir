@@ -4,9 +4,9 @@ import unittest
 from sklearn.linear_model import LogisticRegression
 
 from lir.calibration import FractionCalibrator, ScalingCalibrator
-from lir.lr import calculate_cllr
+from lir import metrics
 from lir.lr import scorebased_cllr
-from lir.util import Xy_to_Xn, Xn_to_Xy
+from lir.util import Xn_to_Xy
 
 
 class TestLR(unittest.TestCase):
@@ -26,18 +26,18 @@ class TestLR(unittest.TestCase):
             np.testing.assert_almost_equal(lr, p1/p0)
 
     def test_calculate_cllr(self):
-        self.assertAlmostEqual(1, calculate_cllr([1, 1], [1, 1]).cllr)
-        self.assertAlmostEqual(2, calculate_cllr([3.]*2, [1/3.]*2).cllr)
-        self.assertAlmostEqual(2, calculate_cllr([3.]*20, [1/3.]*20).cllr)
-        self.assertAlmostEqual(0.4150374992788437, calculate_cllr([1/3.]*2, [3.]*2).cllr)
-        self.assertAlmostEqual(0.7075187496394219, calculate_cllr([1/3.]*2, [1]).cllr)
-        self.assertAlmostEqual(0.507177646488535, calculate_cllr([1/100.]*100, [1]).cllr)
-        self.assertAlmostEqual(0.5400680236656377, calculate_cllr([1/100.]*100 + [100], [1]).cllr)
-        self.assertAlmostEqual(0.5723134914863265, calculate_cllr([1/100.]*100 + [100]*2, [1]).cllr)
-        self.assertAlmostEqual(0.6952113122368764, calculate_cllr([1/100.]*100 + [100]*6, [1]).cllr)
-        self.assertAlmostEqual(1.0000000000000000, calculate_cllr([1], [1]).cllr)
-        self.assertAlmostEqual(1.0849625007211563, calculate_cllr([2], [2]*2).cllr)
-        self.assertAlmostEqual(1.6699250014423126, calculate_cllr([8], [8]*8).cllr)
+        self.assertAlmostEqual(1, metrics.cllr(*Xn_to_Xy([1, 1], [1, 1])))
+        self.assertAlmostEqual(2, metrics.cllr(*Xn_to_Xy([3.]*2, [1/3.]*2)))
+        self.assertAlmostEqual(2, metrics.cllr(*Xn_to_Xy([3.]*20, [1/3.]*20)))
+        self.assertAlmostEqual(0.4150374992788437, metrics.cllr(*Xn_to_Xy([1/3.]*2, [3.]*2)))
+        self.assertAlmostEqual(0.7075187496394219, metrics.cllr(*Xn_to_Xy([1/3.]*2, [1])))
+        self.assertAlmostEqual(0.507177646488535, metrics.cllr(*Xn_to_Xy([1/100.]*100, [1])))
+        self.assertAlmostEqual(0.5400680236656377, metrics.cllr(*Xn_to_Xy([1/100.]*100 + [100], [1])))
+        self.assertAlmostEqual(0.5723134914863265, metrics.cllr(*Xn_to_Xy([1/100.]*100 + [100]*2, [1])))
+        self.assertAlmostEqual(0.6952113122368764, metrics.cllr(*Xn_to_Xy([1/100.]*100 + [100]*6, [1])))
+        self.assertAlmostEqual(1.0000000000000000, metrics.cllr(*Xn_to_Xy([1], [1])))
+        self.assertAlmostEqual(1.0849625007211563, metrics.cllr(*Xn_to_Xy([2], [2]*2)))
+        self.assertAlmostEqual(1.6699250014423126, metrics.cllr(*Xn_to_Xy([8], [8]*8)))
 
     def test_classifier_cllr(self):
         np.random.seed(0)

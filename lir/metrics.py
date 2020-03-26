@@ -54,10 +54,9 @@ def cllr_min(lrs, y, weights=(1, 1)):
     return cllr(lrmin, y, weights)
 
 
-def calculate_cllr(lr_class0, lr_class1):
+def calculate_lr_statistics(lr_class0, lr_class1):
     """
-    Calculates a log likelihood ratio cost (C_llr) for a series of likelihood
-    ratios.
+    Calculates various statistics for a collection of likelihood ratios.
 
     Parameters
     ----------
@@ -102,7 +101,6 @@ def calculate_cllr(lr_class0, lr_class1):
             avg_llr_class1 = np.mean(np.log2(lr_class1))
             avg_llr = avg(avg_llr_class0, avg_llr_class1)
         except RuntimeWarning:
-            print('--')
             # possibly illegal LRs such as 0 or inf
             avg_llr_class0 = np.nan
             avg_llr_class1 = np.nan

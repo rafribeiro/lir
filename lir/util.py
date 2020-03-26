@@ -12,6 +12,7 @@ def Xn_to_Xy(*Xn):
 
     Xn is a format where samples are divided into separate variables based on class.
     Xy is a format where all samples are concatenated, with an equal length variable y indicating class."""
+    Xn = [np.asarray(X) for X in Xn]
     X = np.concatenate(Xn)
     y = np.concatenate([np.ones((X.shape[0],), dtype=np.int8) * i for i, X in enumerate(Xn)])
     return X, y
