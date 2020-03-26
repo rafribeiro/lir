@@ -1,4 +1,5 @@
 import collections
+import warnings
 
 import numpy as np
 
@@ -29,8 +30,8 @@ def cllr(lrs, y, weights=(1, 1)):
     """
     with np.errstate(divide='ignore'):
         lrs0, lrs1 = Xy_to_Xn(lrs, y)
-        cllr0 = weights[0] * np.mean(np.log2(1 + lrs0))
-        cllr1 = weights[1] * np.mean(np.log2(1 + 1/lrs1))
+        cllr0 = weights[0] * np.mean(np.log2(1 + lrs0)) if weights[0] > 0 else 0
+        cllr1 = weights[1] * np.mean(np.log2(1 + 1/lrs1)) if weights[1] > 0 else 0
         return (cllr0 + cllr1) / sum(weights)
 
 
@@ -95,18 +96,25 @@ def calculate_cllr(lr_class0, lr_class1):
         avg_p0_class1 = None
         avg_p1_class1 = None
 
-    with np.errstate(divide='ignore'):
-        avg_llr_class0 = np.mean(np.log2(1/lr_class0))
-        avg_llr_class1 = np.mean(np.log2(lr_class1))
-    avg_llr = avg(avg_llr_class0, avg_llr_class1)
+    with warnings.catch_warnings():
+        try:
+            avg_llr_class0 = np.mean(np.log2(1/lr_class0))
+            avg_llr_class1 = np.mean(np.log2(lr_class1))
+            avg_llr = avg(avg_llr_class0, avg_llr_class1)
+        except RuntimeWarning:
+            print('--')
+            # possibly illegal LRs such as 0 or inf
+            avg_llr_class0 = np.nan
+            avg_llr_class1 = np.nan
+            avg_llr = np.nan
 
     lrs, y = Xn_to_Xy(lr_class0, lr_class1)
-    cllr_class0 = cllr(lrs, y, weights=(0, 1))
-    cllr_class1 = cllr(lrs, y, weights=(1, 0))
+    cllr_class0 = cllr(lrs, y, weights=(1, 0))
+    cllr_class1 = cllr(lrs, y, weights=(0, 1))
     cllr_ = .5 * (cllr_class0 + cllr_class1)
 
-    cllrmin_class0 = cllr_min(lrs, y, weights=(0, 1))
-    cllrmin_class1 = cllr_min(lrs, y, weights=(1, 0))
+    cllrmin_class0 = cllr_min(lrs, y, weights=(1, 0))
+    cllrmin_class1 = cllr_min(lrs, y, weights=(0, 1))
     cllrmin = .5 * (cllrmin_class0 + cllrmin_class1)
 
     return LrStats(avg_llr, avg_llr_class0, avg_llr_class1, avg_p0_class0, avg_p1_class0, avg_p0_class1, avg_p1_class1, cllr_class0, cllr_class1, cllr_, lr_class0, lr_class1, cllrmin, cllr_ - cllrmin)

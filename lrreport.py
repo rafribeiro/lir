@@ -33,7 +33,7 @@ def plot_scheidbaarheid(repeat):
 
     generators = [
         NormalCllrEvaluator('baseline', 0, 1, 0, 1),
-        ScoreBasedCllrEvaluator('logit/fraction', LogisticRegression(solver='lbfgs'), lir.FractionCalibrator(), []),
+        ScoreBasedCllrEvaluator('logit/fraction', LogisticRegression(solver='lbfgs'), lir.ScalingCalibrator(lir.FractionCalibrator()), []),
         ScoreBasedCllrEvaluator('logit/kde', LogisticRegression(solver='lbfgs'), lir.KDECalibrator(), []),
         ScoreBasedCllrEvaluator('logit/gauss', LogisticRegression(solver='lbfgs'), lir.GaussianCalibrator(), []),
         ScoreBasedCllrEvaluator('logit/copy', LogisticRegression(solver='lbfgs'), lir.DummyCalibrator(), []),
@@ -60,7 +60,7 @@ def plot_datasize(repeat):
 
     generators = [
         NormalCllrEvaluator('baseline', 0, 1, dx, 1),
-        ScoreBasedCllrEvaluator('logit/fraction', LogisticRegression(solver='lbfgs'), lir.FractionCalibrator(), []),
+        ScoreBasedCllrEvaluator('logit/fraction', LogisticRegression(solver='lbfgs'), lir.ScalingCalibrator(lir.FractionCalibrator()), []),
         ScoreBasedCllrEvaluator('logit/kde', LogisticRegression(solver='lbfgs'), lir.KDECalibrator(), []),
         ScoreBasedCllrEvaluator('logit/gauss', LogisticRegression(solver='lbfgs'), lir.GaussianCalibrator(), []),
         ScoreBasedCllrEvaluator('logit/copy', LogisticRegression(solver='lbfgs'), lir.DummyCalibrator(), []),
@@ -111,7 +111,7 @@ def plot_split(repeat):
 
     generators = [
         NormalCllrEvaluator('baseline', 0, 1, dx, 1),
-        ScoreBasedCllrEvaluator('logit/fraction', LogisticRegression(solver='lbfgs'), lir.FractionCalibrator(), []),
+        ScoreBasedCllrEvaluator('logit/fraction', LogisticRegression(solver='lbfgs'), lir.ScalingCalibrator(lir.FractionCalibrator()), []),
         ScoreBasedCllrEvaluator('logit/kde', LogisticRegression(solver='lbfgs'), lir.KDECalibrator(), []),
         ScoreBasedCllrEvaluator('logit/gauss', LogisticRegression(solver='lbfgs'), lir.GaussianCalibrator(), []),
         ScoreBasedCllrEvaluator('logit/copy', LogisticRegression(solver='lbfgs'), lir.DummyCalibrator(), []),
