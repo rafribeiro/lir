@@ -54,6 +54,34 @@ class NormalizedCalibrator(BaseEstimator, TransformerMixin):
         return getattr(self.calibrator, name)
 
 
+class ScalingCalibrator(BaseEstimator, TransformerMixin):
+    """
+    Calibrator which adjusts the LRs towards 1 depending on the sample size.
+
+    This is done by adding a value of 1/sample_size to the probabilities of the underlying calibrator and
+    scaling the result.
+    """
+
+    def __init__(self, calibrator):
+        self.calibrator = calibrator
+
+    def fit(self, X, y):
+        self.calibrator.fit(X, y)
+        X0, X1 = Xy_to_Xn(X, y)
+        self.X0n = X0.shape[0]
+        self.X1n = X1.shape[0]
+        return self
+
+    def transform(self, X):
+        self.calibrator.transform(X)
+        self.p0 = self.X0n / (self.X0n + 1) * self.calibrator.p0 + 1 / self.X0n
+        self.p1 = self.X1n / (self.X1n + 1) * self.calibrator.p1 + 1 / self.X1n
+        return self.p1 / self.p0
+
+    def __getattr__(self, name):
+        return getattr(self.calibrator, name)
+
+
 class FractionCalibrator(BaseEstimator, TransformerMixin):
     """
     Calculates a likelihood ratio of the distance of a score value to the

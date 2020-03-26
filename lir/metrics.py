@@ -9,7 +9,7 @@ from .util import Xn_to_Xy, Xy_to_Xn, to_probability, LR
 LrStats = collections.namedtuple('LrStats', ['avg_llr', 'avg_llr_class0', 'avg_llr_class1', 'avg_p0_class0', 'avg_p1_class0', 'avg_p0_class1', 'avg_p1_class1', 'cllr_class0', 'cllr_class1', 'cllr', 'lr_class0', 'lr_class1', 'cllr_min', 'cllr_cal'])
 
 
-def cllr(lrs, y):
+def cllr(lrs, y, weights=(1, 1)):
     """
     Calculates a log likelihood ratio cost (C_llr) for a series of likelihood
     ratios.
@@ -29,12 +29,12 @@ def cllr(lrs, y):
     """
     with np.errstate(divide='ignore'):
         lrs0, lrs1 = Xy_to_Xn(lrs, y)
-        cllr0 = np.mean(np.log2(1 + lrs0))
-        cllr1 = np.mean(np.log2(1 + 1/lrs1))
-        return .5 * (cllr0 + cllr1)
+        cllr0 = weights[0] * np.mean(np.log2(1 + lrs0))
+        cllr1 = weights[1] * np.mean(np.log2(1 + 1/lrs1))
+        return (cllr0 + cllr1) / sum(weights)
 
 
-def cllr_min(lrs, y):
+def cllr_min(lrs, y, weights=(1, 1)):
     """
     Estimates the discriminative power from a collection of likelihood ratios.
 
@@ -50,7 +50,7 @@ def cllr_min(lrs, y):
     """
     cal = IsotonicCalibrator()
     lrmin = cal.fit_transform(to_probability(lrs), y)
-    return cllr(lrmin, y)
+    return cllr(lrmin, y, weights)
 
 
 def calculate_cllr(lr_class0, lr_class1):
@@ -95,15 +95,18 @@ def calculate_cllr(lr_class0, lr_class1):
         avg_p0_class1 = None
         avg_p1_class1 = None
 
-    avg_llr_class0 = np.mean(np.log2(1/lr_class0))
-    avg_llr_class1 = np.mean(np.log2(lr_class1))
+    with np.errstate(divide='ignore'):
+        avg_llr_class0 = np.mean(np.log2(1/lr_class0))
+        avg_llr_class1 = np.mean(np.log2(lr_class1))
     avg_llr = avg(avg_llr_class0, avg_llr_class1)
 
-    cllr, cllr_class0, cllr_class1 = cllr(*Xn_to_Xy(lr_class0, lr_class1))
+    lrs, y = Xn_to_Xy(lr_class0, lr_class1)
+    cllr_class0 = cllr(lrs, y, weights=(0, 1))
+    cllr_class1 = cllr(lrs, y, weights=(1, 0))
+    cllr_ = .5 * (cllr_class0 + cllr_class1)
 
-    irc = IsotonicCalibrator()
-    lr, y = Xn_to_Xy(lr_class0 / (lr_class0 + 1), lr_class1 / (lr_class1 + 1))  # translate LRs to range 0..1
-    lrmin = irc.fit_transform(lr, y)
-    cllrmin, cllrmin_class0, cllrmin_class1 = cllr(lrmin, y)
+    cllrmin_class0 = cllr_min(lrs, y, weights=(0, 1))
+    cllrmin_class1 = cllr_min(lrs, y, weights=(1, 0))
+    cllrmin = .5 * (cllrmin_class0 + cllrmin_class1)
 
-    return LrStats(avg_llr, avg_llr_class0, avg_llr_class1, avg_p0_class0, avg_p1_class0, avg_p0_class1, avg_p1_class1, cllr_class0, cllr_class1, cllr, lr_class0, lr_class1, cllrmin, cllr - cllrmin)
+    return LrStats(avg_llr, avg_llr_class0, avg_llr_class1, avg_p0_class0, avg_p1_class0, avg_p0_class1, avg_p1_class1, cllr_class0, cllr_class1, cllr_, lr_class0, lr_class1, cllrmin, cllr_ - cllrmin)
