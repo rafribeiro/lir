@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 
-from . import lr
+from . import lr, CalibratedScorer, Xy_to_Xn
 from .metrics import calculate_lr_statistics
 from .calibration import IsotonicCalibrator
 from .util import Xn_to_Xy
@@ -360,3 +360,41 @@ def plot_pav(lrs, y, show_scatter=True, savefig=None, show=None, kw_figure={}):
         plt.show()
 
     plt.close(fig)
+
+
+def plot_lr_distributions(lr_system: CalibratedScorer, X, y, savefig=None, show=None):
+    """
+    plots the 10log lrs generated for the two hypotheses by the fitted system
+    """
+    plt.figure(figsize=(10, 10), dpi=100)
+    log_lrs = np.log10(lr_system.predict_lr(X))
+    points0, points1 = Xy_to_Xn(log_lrs, y)
+    plt.hist(points0, bins=20, alpha=.25, density=True)
+    plt.hist(points1, bins=20, alpha=.25, density=True)
+    plt.xlabel('10log LR')
+    if savefig is not None:
+        plt.savefig(savefig)
+        plt.close()
+    if show or savefig is None:
+        plt.show()
+
+
+def plot_score_distribution_and_calibrator_fit(calibrator, scores, y, savefig=None, show=None):
+    """
+    plots the distributions of scores calculated by the (fitted) lr_system, as well as the fitted score distributions/
+    score-to-posterior map
+    (Note - for ELUBbounder calibrator is the firststepcalibrator)
+    """
+    plt.figure(figsize=(10, 10), dpi=100)
+    x = np.arange(0, 1, .01)
+    calibrator.transform(x)
+    points0, points1 = Xy_to_Xn(scores, y)
+    plt.hist(points0, bins=20, alpha=.25, density=True, label='class 0')
+    plt.hist(points1, bins=20, alpha=.25, density=True, label='class 1')
+    plt.plot(x, calibrator.p1, label='fit class 1')
+    plt.plot(x, calibrator.p0, label='fit class 0')
+    if savefig is not None:
+        plt.savefig(savefig)
+        plt.close()
+    if show or savefig is None:
+        plt.show()
