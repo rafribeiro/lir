@@ -59,6 +59,9 @@ class Data:
         print('ELUB', *lir.bayeserror.elub(self.lrs, self.y, add_misleading=add_misleading))
         lir.bayeserror.plot(self.lrs, self.y, add_misleading=add_misleading, on_screen=True)
 
+    def plot_tippett(self):
+        lir.plotting.plot_log_lr_distributions(np.log10(self.lrs), self.y, 'tippett', show=True)
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='LR operations & plotting')
@@ -66,6 +69,7 @@ if __name__ == '__main__':
     plotting.add_argument('--plot-isotonic', help='generate an Isotonic Regression plot', action='store_true')
     plotting.add_argument('--plot-ece', help='generate an ECE plot (empirical cross entropy)', action='store_true')
     plotting.add_argument('--plot-nbe', help='generate an NBE plot (normalized bayes error rate)', action='store_true')
+    plotting.add_argument('--plot-tippett', help='generate a Tippett plot', action='store_true')
 
     etl = parser.add_argument_group('data')
     etl.add_argument('--load-lrs', metavar='FILE', help='read LRs from FILE')
@@ -90,3 +94,5 @@ if __name__ == '__main__':
         data.plot_ece()
     if args.plot_nbe:
         data.plot_nbe()
+    if args.plot_tippett:
+        data.plot_tippett()
