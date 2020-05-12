@@ -370,11 +370,12 @@ def plot_log_lr_distributions_for_model(lr_system: CalibratedScorer, X, y, kind:
     kinds = ['histogram', 'tippett']
     if kind not in kinds:
         raise ValueError(f'kind should be in {kinds}, got {kind}')
-    log_lrs = np.log10(lr_system.predict_lr(X))
-    plot_log_lr_distributions(log_lrs, y, kind=kind, savefig = savefig, show = show)
+
+    lrs = lr_system.predict_lr(X)
+    plot_log_lr_distributions(lrs, y, kind=kind, savefig = savefig, show = show)
 
 
-def plot_log_lr_distributions(log_lrs, y, kind: str = 'histogram',
+def plot_log_lr_distributions(lrs, y, kind: str = 'histogram',
                                         savefig=None, show=None):
     """
     plots the 10log lrs
@@ -382,7 +383,9 @@ def plot_log_lr_distributions(log_lrs, y, kind: str = 'histogram',
     kinds = ['histogram', 'tippett']
     if kind not in kinds:
         raise ValueError(f'kind should be in {kinds}, got {kind}')
+
     plt.figure(figsize=(10,10), dpi=100)
+    log_lrs = np.log10(lrs)
     if kind == 'histogram':
         points0, points1 = Xy_to_Xn(log_lrs, y)
         plt.hist(points0, bins=20, alpha=.25, density=True)
@@ -391,8 +394,8 @@ def plot_log_lr_distributions(log_lrs, y, kind: str = 'histogram',
     if kind == 'tippett':
         xplot = np.linspace(np.min(log_lrs), np.max(log_lrs), 100)
         lr_0, lr_1 = Xy_to_Xn(log_lrs, y)
-        perc0 = (sum(i > xplot for i in lr_0) / len(lr_0)) * 100
-        perc1 = (sum(i > xplot for i in lr_1) / len(lr_1)) * 100
+        perc0 = (sum(i >= xplot for i in lr_0) / len(lr_0)) * 100
+        perc1 = (sum(i >= xplot for i in lr_1) / len(lr_1)) * 100
 
         plt.plot(xplot, perc1, color='b', label='LRs given $\mathregular{H_1}$')
         plt.plot(xplot, perc0, color='r', label='LRs given $\mathregular{H_2}$')
