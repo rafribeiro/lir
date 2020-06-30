@@ -47,6 +47,19 @@ class LogitCalibrator(BaseEstimator, TransformerMixin):
 
 
 class BalancedPriorCalibrator(BaseEstimator, TransformerMixin):
+    """
+    Recalculates LRs as posterior odds for balanced priors.
+
+    In a forensic context, an LR of two classes is the same as posterior odds
+    if the priors for both classes are equal. In multiclass classification,
+    classifiers tend to produce posterior probabilities based on balanced
+    classes, i.e. every class has a prior probability of 1/n, with n is the
+    number of classes. This leads to prior odds of every class versus all other
+    classes of (1/n) / (n-1)/n = 1/(n-1).
+
+    This class compensates for that by updating the prior odds to 1 and update
+    posterior odds (=LRs) accordingly.
+    """
     def __init__(self, backend):
         self.backend = backend
 

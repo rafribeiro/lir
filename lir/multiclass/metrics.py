@@ -1,4 +1,5 @@
 import numpy as np
+import scipy.stats
 
 from .util import scores_Xy_to_Xn, get_classes_from_scores_Xy
 
@@ -28,7 +29,7 @@ def geometric_mean(values):
     """
     Calculates the geometric mean over all values in an array.
     """
-    return np.exp(np.mean(np.log(values)))
+    return scipy.stats.mstats.gmean(values)
 
 
 def by_class(metric, scores, y, classes=None):
