@@ -7,7 +7,7 @@ LR = collections.namedtuple('LR', ['lr', 'p0', 'p1'])
 
 
 def get_classes_from_Xy(X, y, classes=None):
-    assert len(X.shape) == 2, f'expected: X is a 2-dimensional array; found: {len(X.shape)} dimensions'
+    assert len(X.shape) >= 1, f'expected: X has at least 1 dimensions; found: {len(X.shape)} dimensions'
     assert len(y.shape) == 1, f'expected: y is a 1-dimensional array; found: {len(y.shape)} dimensions'
     assert X.shape[0] == y.size, f'dimensions of X and y do not match; found: {X.shape[0]} != {y.size}'
 

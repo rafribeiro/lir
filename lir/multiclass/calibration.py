@@ -13,14 +13,17 @@ transform(self, X)
     returns a two dimensional array of lrs; same dimensions as X
 """
 import logging
+import math
+import warnings
 
 import numpy as np
 from sklearn.base import BaseEstimator
 from sklearn.base import TransformerMixin
 from sklearn.linear_model import LogisticRegression
+from sklearn.neighbors import KernelDensity
 
 from ..calibration import DummyCalibrator
-from .util import to_odds, get_classes_from_scores_Xy
+from .util import to_odds, get_classes_from_scores_Xy, to_probability
 
 LOG = logging.getLogger(__name__)
 
@@ -32,23 +35,31 @@ class LogitCalibrator(BaseEstimator, TransformerMixin):
     """
 
     def fit(self, X, y):
-        self._classes = get_classes_from_scores_Xy(X, y, np.unique(y))
-        self._logit = []
-        for cls in self._classes:
-            logit = LogisticRegression(class_weight='balanced')
-            y_cls = np.zeros(y.shape)
-            y_cls[y==cls] = 1
-            logit.fit(X, y_cls)
-            self._logit.append(logit)
+        self._logit = LogisticRegression(class_weight='balanced')
+        self._logit.fit(X, y)
 
         return self
 
     def transform(self, X):
-        assert X.shape[1] == self._classes.size
+        self.p = self._logit.predict_proba(X)
+        lrs = to_odds(self.p)
+        return lrs
 
-        p = []
-        for cls in range(self._classes.size):
-            p.append(self._logit[cls].predict_proba(X)[:, 1])  # probability of class 1
 
-        lrs = to_odds(np.stack(p, axis=1))
+class BalancedPriorCalibrator(BaseEstimator, TransformerMixin):
+    def __init__(self, backend):
+        self.backend = backend
+
+    def fit(self, X, y):
+        self.backend.fit(X, y)
+        return self
+
+    def transform(self, X):
+        X = to_probability(self.backend.transform(X))
+        self.priors = np.ones(X.shape[1]) / X.shape[1]
+
+        priors_sum = np.sum(self.priors)
+        prior_odds = self.priors / (priors_sum - self.priors)
+        lrs = to_odds(X) / prior_odds
+        self.p = to_probability(lrs)
         return lrs
