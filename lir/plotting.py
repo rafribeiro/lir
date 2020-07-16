@@ -429,3 +429,27 @@ def plot_score_distribution_and_calibrator_fit(calibrator, scores, y, savefig=No
         plt.close()
     if show or savefig is None:
         plt.show()
+
+
+class PlottingCalibrator():
+    """
+    Calibrator wrapper which plots the calibrator fit.
+
+    Usage example:
+    ```
+    calibrator = lir.plotting.PlottingCalibrator(lir.NormalizedCalibrator(lir.KDECalibrator(bandwidth=.03)), plot_score_distribution_and_calibrator_fit, {'plot_args': 'fig.png'})
+    ```
+    """
+    def __init__(self, calibrator, plot_method, plot_args={}):
+        self._calibrator = calibrator
+        self._plot_method = plot_method
+        self._plot_args = plot_args
+
+    def fit(self, X, y=None, **kwargs):
+        self._calibrator.fit(X, y, **kwargs)
+        self._plot_method(self._calibrator, X, y, **self._plot_args)
+
+        return self
+
+    def transform(self, X):
+        return self._calibrator.transform(X)
