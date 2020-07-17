@@ -437,7 +437,7 @@ class PlottingCalibrator():
 
     Usage example:
     ```
-    calibrator = lir.plotting.PlottingCalibrator(lir.NormalizedCalibrator(lir.KDECalibrator(bandwidth=.03)), plot_score_distribution_and_calibrator_fit, {'plot_args': 'fig.png'})
+    calibrator = lir.plotting.PlottingCalibrator(lir.NormalizedCalibrator(lir.KDECalibrator(bandwidth=.03)), plot_score_distribution_and_calibrator_fit, plot_args={'savefig': 'fig.png'})
     ```
     """
     def __init__(self, calibrator, plot_method, plot_args={}):
@@ -452,4 +452,7 @@ class PlottingCalibrator():
         return self
 
     def transform(self, X):
-        return self._calibrator.transform(X)
+        lrs = self._calibrator.transform(X)
+        self.p0 = self._calibrator.p0
+        self.p1 = self._calibrator.p1
+        return lrs
