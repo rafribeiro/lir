@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import os
-from setuptools import setup
+from setuptools import setup, find_packages
 
 
 package_dir = os.path.dirname(__file__)
@@ -16,7 +16,7 @@ setup(name='lir',
       url='https://github.com/HolmesNL/lir/',
       author='Netherlands Forensic Institute',
       author_email='fbda@holmes.nl',
-      packages=['lir'],
+      packages=find_packages(),
       setup_requires=['nose'],
       test_suite='nose.collector',
       install_requires=packages,
