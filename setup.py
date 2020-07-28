@@ -11,7 +11,7 @@ with open(requirements_file_path, 'r') as f:
     packages = [str(f) for f in f.readlines()]
 
 setup(name='lir',
-      version='0.0.2',
+      version='0.0.4',
       description='scripts for calculating likelihood ratios',
       url='https://github.com/HolmesNL/lir/',
       author='Netherlands Forensic Institute',
