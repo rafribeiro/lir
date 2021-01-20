@@ -401,9 +401,10 @@ def plot_lr_histogram(lrs, y, savefig=None, show=None, kw_figure={}):
     plt.figure(**kw_figure)
     log_lrs = np.log10(lrs)
 
+    bins = np.histogram_bin_edges(log_lrs, bins=20)
     points0, points1 = Xy_to_Xn(log_lrs, y)
-    plt.hist(points0, bins=20, alpha=.25, density=True)
-    plt.hist(points1, bins=20, alpha=.25, density=True)
+    plt.hist(points0, bins=bins, alpha=.25, density=True)
+    plt.hist(points1, bins=bins, alpha=.25, density=True)
     plt.xlabel('10log LR')
 
     if savefig is not None:
@@ -449,8 +450,9 @@ def plot_score_distribution_and_calibrator_fit(calibrator, scores, y, savefig=No
     x = np.arange(0, 1, .01)
     calibrator.transform(x)
 
+    bins = np.histogram_bin_edges(scores, bins=20)
     for cls in np.unique(y):
-        plt.hist(scores[y == cls], bins=20, alpha=.25, density=True,
+        plt.hist(scores[y == cls], bins=bins, alpha=.25, density=True,
                  label=f'class {cls}')
     plt.plot(x, calibrator.p1, label='fit class 1')
     plt.plot(x, calibrator.p0, label='fit class 0')
