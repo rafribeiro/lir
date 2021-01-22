@@ -213,6 +213,8 @@ class PlotLlrStd:
 
 
 def makeplot_density(clf, X0_train, X1_train, X0_calibrate, X1_calibrate, calibrators, savefig=None, show=None):
+    warnings.warn('this function is no longer maintained; use `plot_score_distribution_and_calibrator_fit` instead')
+
     line_colors = ['r', 'g', 'b', 'c', 'm', 'y', 'k', ]
 
     plt.figure(figsize=(20,20), dpi=100)
@@ -394,14 +396,14 @@ def plot_log_lr_distributions(lrs, y, kind: str = 'histogram',
         raise ValueError(f'kind should be in {kinds.keys()}, got {kind}')
 
 
-def plot_lr_histogram(lrs, y, savefig=None, show=None, kw_figure={}):
+def plot_lr_histogram(lrs, y, bins=20, savefig=None, show=None, kw_figure={}):
     """
     plots the 10log lrs
     """
     plt.figure(**kw_figure)
     log_lrs = np.log10(lrs)
 
-    bins = np.histogram_bin_edges(log_lrs, bins=20)
+    bins = np.histogram_bin_edges(log_lrs, bins=bins)
     points0, points1 = Xy_to_Xn(log_lrs, y)
     plt.hist(points0, bins=bins, alpha=.25, density=True)
     plt.hist(points1, bins=bins, alpha=.25, density=True)
@@ -440,17 +442,19 @@ def plot_tippett(lrs, y, savefig=None, show=None, kw_figure={}):
     plt.close()
 
 
-def plot_score_distribution_and_calibrator_fit(calibrator, scores, y, savefig=None, show=None):
+def plot_score_distribution_and_calibrator_fit(calibrator, scores, y, bins=20, savefig=None, show=None):
     """
     plots the distributions of scores calculated by the (fitted) lr_system, as well as the fitted score distributions/
     score-to-posterior map
     (Note - for ELUBbounder calibrator is the firststepcalibrator)
+
+    TODO: plot multiple calibrators at once
     """
     plt.figure(figsize=(10, 10), dpi=100)
     x = np.arange(0, 1, .01)
     calibrator.transform(x)
 
-    bins = np.histogram_bin_edges(scores, bins=20)
+    bins = np.histogram_bin_edges(scores, bins=bins)
     for cls in np.unique(y):
         plt.hist(scores[y == cls], bins=bins, alpha=.25, density=True,
                  label=f'class {cls}')
