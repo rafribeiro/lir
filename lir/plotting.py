@@ -213,7 +213,7 @@ class PlotLlrStd:
 
 
 def makeplot_density(clf, X0_train, X1_train, X0_calibrate, X1_calibrate, calibrators, savefig=None, show=None):
-    warnings.warn('this function is no longer maintained; use `plot_score_distribution_and_calibrator_fit` instead')
+    warnings.warn('the function `makeplot_density` is no longer maintained; use `plot_score_distribution_and_calibrator_fit` instead')
 
     line_colors = ['r', 'g', 'b', 'c', 'm', 'y', 'k', ]
 
