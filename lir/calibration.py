@@ -216,15 +216,31 @@ class IsotonicCalibrator(BaseEstimator, TransformerMixin):
     two distributions. Uses isotonic regression for interpolation.
     """
 
-    def __init__(self, add_one=False):
-        self.add_one = add_one
+    def __init__(self, add_one=False, add_misleading=0):
+        """
+        Arguments:
+            add_one: deprecated (same as add_misleading=1)
+            add_misleading: int: add misleading data points on both sides (default: 0)
+        """
+        if add_one:
+            warnings.warn('parameter `add_one` is deprecated; use `add_misleading=1` instead')
+
+        self.add_misleading = (1 if add_one else 0) + add_misleading
         self._ir = IsotonicRegression()
 
     def fit(self, X, y, **fit_params):
         # prevent extreme LRs
-        if ('add_one' in fit_params and fit_params['add_one']) or self.add_one:
-            X = np.append(X, [1, 0])
-            y = np.append(y, [0, 1])
+        if 'add_misleading' in fit_params:
+            n_misleading = fit_params['add_misleading']
+        elif 'add_one' in fit_params:
+            warnings.warn('parameter `add_one` is deprecated; use `add_misleading=1` instead')
+            n_misleading = 1 if fit_params['add_one'] else 0
+        else:
+            n_misleading = self.add_misleading
+
+        if n_misleading > 0:
+            X = np.concatenate([X, np.ones(n_misleading) * (X.max()+1), np.ones(n_misleading) * (X.min()-1)])
+            y = np.concatenate([y, np.zeros(n_misleading), np.ones(n_misleading)])
 
         prior = np.sum(y) / y.size
         weight = y * (1 - prior) + (1 - y) * prior
@@ -330,3 +346,10 @@ class ELUBbounder(BaseEstimator, TransformerMixin):
         adjusted_lrs = np.where(self._upper_lr_bound > lower_adjusted_lrs, lower_adjusted_lrs, self._upper_lr_bound)
         return adjusted_lrs
 
+    @property
+    def p0(self):
+        return self.first_step_calibrator.p0
+
+    @property
+    def p1(self):
+        return self.first_step_calibrator.p1
