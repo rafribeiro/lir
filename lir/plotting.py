@@ -313,9 +313,15 @@ def makeplot_accuracy(scorer, density_function, X0_train, X1_train, X0_calibrate
         plt.show()
 
 
-def plot_pav(lrs, y, show_scatter=True, savefig=None, show=None, kw_figure={}):
+def plot_pav(lrs, y, add_misleading=0, show_scatter=True, savefig=None, show=None, kw_figure={}):
     """
-    Generates a plot of pre- versus post-calibrated LRs using Pool Adjacent Violators (PAV).
+    Generates a plot of pre- versus post-calibrated LRs using Pool Adjacent
+    Violators (PAV).
+
+    Note that post-calibrated LRs may be infinite or negative infinite, unless
+    misleading data points are added. Infinite values cannot be plotted. In
+    fact, if there is a perfect separation between the classes, all values are
+    infinite and nothing will be plotted at all.
 
     Parameters
     ----------
@@ -323,6 +329,8 @@ def plot_pav(lrs, y, show_scatter=True, savefig=None, show=None, kw_figure={}):
         Likelihood ratios before PAV transform
     y : numpy array
         Labels corresponding to lrs (0 for Hd and 1 for Hp)
+    add_misleading : int
+        number of misleading evidence points to add on both sides
     show_scatter : boolean
         If True, show individual LRs
     savefig : str
@@ -332,7 +340,7 @@ def plot_pav(lrs, y, show_scatter=True, savefig=None, show=None, kw_figure={}):
     kw_figure : dict
         Keyword arguments that are passed to matplotlib.pyplot.figure()
     """
-    pav = IsotonicCalibrator()
+    pav = IsotonicCalibrator(add_misleading=add_misleading)
     pav_lrs = pav.fit_transform(lrs, y)
 
     with np.errstate(divide='ignore'):
