@@ -106,7 +106,7 @@ def devpav(lrs, y, resolution=1000):
     #    print('X', pair)
 
     devlr = np.absolute(np.log10(xlr) - np.log10(pavlr))
-    return np.sum(devlr) / resolution
+    return (np.sum(devlr) / resolution) * (np.log10(last_misleading) - np.log10(first_misleading))
 
 
 def calculate_lr_statistics(lr_class0, lr_class1):
