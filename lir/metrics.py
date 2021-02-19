@@ -58,6 +58,57 @@ def cllr_min(lrs, y, weights=(1, 1)):
     return cllr(lrmin, y, weights)
 
 
+def devpav(lrs, y, resolution=1000):
+    """
+    Estimate devPAV, a metric for calibration.
+
+    devPAV is the cumulative deviation of the PAV transformation from
+    the identity line. It is calculated in the LR range where misleading LRs
+    occur.
+
+    See also: P. Vergeer, Measuring calibration of likelihood ratio systems: a
+    comparison of four systems, including a new metric devPAV, to appear
+
+    This implementation estimates devPAV by calculating the average deviation
+    for a large number of LRs.
+
+    Parameters
+    ----------
+    lrs : a numpy array of LRs
+    y : a numpy array of labels (0 or 1)
+    resolution : the number of measurements in the range of misleading evidence; a higher value yields a more accurate estimation
+
+    Returns
+    -------
+    devPAV
+        an estimation of devPAV
+    """
+    lrs0, lrs1 = Xy_to_Xn(lrs, y)
+    if len(lrs0) == 0 or len(lrs1) == 0:
+        raise ValueError('devpav: illegal input: at least one value is required for each class')
+
+    # find misleading LR extremes
+    first_misleading = np.min(lrs1)
+    last_misleading = np.max(lrs0)
+    if first_misleading > last_misleading:
+        return 0
+
+    # calibrate on the input LRs
+    cal = IsotonicCalibrator()
+    cal.fit_transform(to_probability(lrs), y)
+
+    # take `resolution` points evenly divided along the range of misleading LRs
+    xlr = np.exp(np.linspace(np.log(first_misleading), np.log(last_misleading), resolution))
+    pavlr = cal.transform(to_probability(xlr))
+
+    #print('range', first_misleading, last_misleading)
+    #for pair in zip(xlr, pavlr):
+    #    print('X', pair)
+
+    devlr = np.absolute(np.log10(xlr) - np.log10(pavlr))
+    return np.sum(devlr) / resolution
+
+
 def calculate_lr_statistics(lr_class0, lr_class1):
     """
     Calculates various statistics for a collection of likelihood ratios.
