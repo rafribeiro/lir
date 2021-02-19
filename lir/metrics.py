@@ -90,8 +90,11 @@ def devpav(lrs, y, resolution=1000):
     # find misleading LR extremes
     first_misleading = np.min(lrs1)
     last_misleading = np.max(lrs0)
-    if first_misleading > last_misleading:
+    if first_misleading > last_misleading:  # test for perfect discrimination
         return 0
+
+    if np.isinf(first_misleading) or np.isinf(last_misleading):  # test for infinitely misleading LRs
+        return np.inf
 
     # calibrate on the input LRs
     cal = IsotonicCalibrator()

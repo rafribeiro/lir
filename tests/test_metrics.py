@@ -23,6 +23,11 @@ class TestDevPAV(unittest.TestCase):
         y = np.concatenate([np.ones(5), np.zeros(5)])
         self.assertAlmostEqual(devpav(lrs, y, 10), 0)  # TODO: what should be the outcome?
 
+        # infinitely bad calibration
+        lrs = np.array([5, 5, 5, .2, .2, .2, np.inf])
+        y = np.concatenate([np.ones(3), np.zeros(4)])
+        self.assertAlmostEqual(devpav(lrs, y, 10), np.inf)
+
         # binary system
         lrs = np.array([5, 5, 5, .2, 5, .2, .2, .2])
         y = np.concatenate([np.ones(4), np.zeros(4)])
