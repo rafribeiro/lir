@@ -5,8 +5,7 @@ import sklearn
 import sklearn.mixture
 
 from .metrics import calculate_lr_statistics
-from .util import Xn_to_Xy, LR
-
+from .util import Xn_to_Xy, LR, to_log_odds
 
 LOG = logging.getLogger(__name__)
 
@@ -16,16 +15,22 @@ class CalibratedScorer:
         self.scorer = scorer
         self.calibrator = calibrator
 
-    def fit(self, X, y):
+    def fit(self, X, y, on_log_odds=False):
         self.fit_scorer(X, y)
-        self.fit_calibrator(X, y)
+        self.fit_calibrator(X, y, on_log_odds)
 
     def fit_scorer(self, X, y):
         self.scorer.fit(X, y)
 
-    def fit_calibrator(self, X, y):
-        p = self.scorer.predict_proba(X)
-        self.calibrator.fit(p[:, 1], y)
+    def fit_calibrator(self, X, y, on_log_odds=False):
+        """
+        fits the internal calibrator on the supplied samples and scores. Does a logit transformation on the scores if
+        requested
+        """
+        p = self.scorer.predict_proba(X)[:,1]
+        if on_log_odds:
+            p = to_log_odds(p)
+        self.calibrator.fit(p, y)
 
     def predict_lr(self, X):
         X = self.scorer.predict_proba(X)[:,1]

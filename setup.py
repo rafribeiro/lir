@@ -5,16 +5,18 @@ from setuptools import setup, find_packages
 
 
 package_dir = os.path.dirname(__file__)
-requirements_file_path = os.path.join(os.path.dirname(__file__), 'requirements.txt')
+# requirements_file_path = os.path.join(os.path.dirname(__file__), 'requirements.txt')
+#
+# with open(requirements_file_path, 'r') as f:
+#     packages = [str(f) for f in f.readlines()]
 
-with open(requirements_file_path, 'r') as f:
-    packages = [str(f) for f in f.readlines()]
+packages=[]
 
-with open('readme.md') as f:
-    long_description = f.read()
-
+# with open('readme.md') as f:
+#     long_description = f.read()
+long_description=''
 setup(name='lir',
-      version='0.0.5',
+      version='0.0.6',
       description='scripts for calculating likelihood ratios',
       long_description=long_description,
       long_description_content_type="text/markdown",

@@ -459,13 +459,16 @@ def plot_score_distribution_and_calibrator_fit(calibrator, scores, y, bins=20, s
     TODO: plot multiple calibrators at once
     """
     plt.figure(figsize=(10, 10), dpi=100)
-    x = np.arange(0, 1, .01)
-    calibrator.transform(x)
 
     bins = np.histogram_bin_edges(scores, bins=bins)
+
+    x = np.arange(min(bins), max(bins), .01)
+    calibrator.transform(x)
+
     for cls in np.unique(y):
         plt.hist(scores[y == cls], bins=bins, alpha=.25, density=True,
                  label=f'class {cls}')
+
     plt.plot(x, calibrator.p1, label='fit class 1')
     plt.plot(x, calibrator.p0, label='fit class 0')
 

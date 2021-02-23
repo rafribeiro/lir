@@ -63,4 +63,7 @@ def to_odds(p):
 
 def to_log_odds(p):
     odds = to_odds(p)
-    return np.nan_to_num(np.log10(odds))
+    res=np.nan_to_num(np.log10(odds), neginf=-10, posinf=10)
+    res[res < -10] = -10
+    res[res>10]=10
+    return res
