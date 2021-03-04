@@ -1,6 +1,7 @@
 import logging
 import math
 import warnings
+from typing import Optional, Tuple, Union
 
 import numpy as np
 from sklearn.base import BaseEstimator
@@ -119,12 +120,25 @@ class KDECalibrator(BaseEstimator, TransformerMixin, ):
     two distributions. Uses kernel density estimation (KDE) for interpolation.
     """
 
-    def __init__(self, bandwidth=None):
-        self.bandwidth = bandwidth
-        self._kde0 = None
-        self._kde1 = None
+    def __init__(self, bandwidth: Optional[Union[float, Tuple[Optional[float], Optional[float]]]] = None):
+        """
 
-    def bandwidth_silverman(self, X):
+        :param bandwidth:
+            * If None is provided the Silverman's rule of thumb is
+            used to calculate the bandwidth for both distributions (independently)
+            * If a single float is provided this is used as the bandwith for both
+            distributions
+            * If a tuple is provided, the first entry is used for the bandwidth
+            of the first distribution (kde0) and the second entry for the second
+            distribution (if value is None: Silverman's rule of thumb is used)
+        """
+        self.bandwidth: Tuple[Optional[float], Optional[float]] = \
+            self._parse_bandwidth(bandwidth)
+        self._kde0: Optional[KernelDensity] = None
+        self._kde1: Optional[KernelDensity] = None
+
+    @staticmethod
+    def bandwidth_silverman(X):
         """
         Estimates the optimal bandwidth parameter using Silverman's rule of
         thumb.
@@ -141,7 +155,8 @@ class KDECalibrator(BaseEstimator, TransformerMixin, ):
         v = math.pow(std, 5) / len(X) * 4. / 3
         return math.pow(v, .2)
 
-    def bandwidth_scott(self, X):
+    @staticmethod
+    def bandwidth_scott(X):
         """
         Not implemented.
         """
@@ -152,8 +167,8 @@ class KDECalibrator(BaseEstimator, TransformerMixin, ):
         X0 = X0.reshape(-1, 1)
         X1 = X1.reshape(-1, 1)
 
-        bandwidth0 = self.bandwidth or self.bandwidth_silverman(X0)
-        bandwidth1 = self.bandwidth or self.bandwidth_silverman(X1)
+        bandwidth0 = self.bandwidth[0] or self.bandwidth_silverman(X0)
+        bandwidth1 = self.bandwidth[1] or self.bandwidth_silverman(X1)
 
         self._kde0 = KernelDensity(kernel='gaussian', bandwidth=bandwidth0).fit(X0)
         self._kde1 = KernelDensity(kernel='gaussian', bandwidth=bandwidth1).fit(X1)
@@ -168,6 +183,24 @@ class KDECalibrator(BaseEstimator, TransformerMixin, ):
 
         with np.errstate(divide='ignore'):
             return self.p1 / self.p0
+
+    @staticmethod
+    def _parse_bandwidth(bandwidth: Optional[Union[float, Tuple[float, float]]]) \
+            -> Tuple[Optional[float], Optional[float]]:
+        """
+        Returns bandwidth as a tuple of two (optional) floats.
+        Extrapolates a single bandwidth
+        :param bandwidth: provided bandwidth
+        :return: bandwidth used for kde0, bandwidth used for kde1
+        """
+        if bandwidth is None:
+            return None, None
+        elif isinstance(bandwidth, float):
+            return bandwidth, bandwidth
+        elif len(bandwidth) == 2:
+            return bandwidth
+        else:
+            raise ValueError('Invalid input for bandwidth')
 
 
 class LogitCalibrator(BaseEstimator, TransformerMixin):
