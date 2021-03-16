@@ -16,10 +16,10 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-    - name: Set up Python 3.8
+    - name: Set up Python 3.9
       uses: actions/setup-python@v1
       with:
-        python-version: 3.8
+        python-version: 3.9
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
@@ -35,3 +35,46 @@ jobs:
       run: |
         pip install pytest
         pytest
+    - name: Bump version number
+      if: github.ref == 'refs/heads/master'
+      run: |
+        python -m pip install black
+        echo "NEW_VERSION=$(python .github/workflows/bumper.py)" >> $GITHUB_ENV
+    - name: Commit possibly updated setup.py
+      if: github.ref == 'refs/heads/master'
+      run: |
+        git config --local user.email "fbda@nfi.nl"
+        git config --local user.name "Version bumper"
+        git add setup.py
+        git commit -m "Bump version to ${{ env.NEW_VERSION }}" || echo "Did not bump the patch part of the version number, this could be caused by a manual version bump"
+    - name: Push changes
+      if: github.ref == 'refs/heads/master'
+      uses: ad-m/github-push-action@master
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+    - name: Create Release
+      if: github.ref == 'refs/heads/master'
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ env.NEW_VERSION }}
+        release_name: Release ${{ env.NEW_VERSION }}
+        body: |
+          Automated patch release
+        draft: false
+        prerelease: false
+    - name: Install publishing dependencies
+      if: github.ref == 'refs/heads/master'
+      run: |
+        python -m pip install --upgrade pip
+        pip install setuptools wheel twine
+    - name: Build and publish
+      if: github.ref == 'refs/heads/master'
+      env:
+        TWINE_USERNAME: fbda
+        TWINE_PASSWORD: ${{ secrets.PYPI_FBDA_PASSWORD }}
+      run: |
+        python setup.py sdist bdist_wheel
+        twine upload dist/*
