@@ -6,7 +6,7 @@ from lir.data import AlcoholBreathAnalyser
 
 
 class TestElub(unittest.TestCase):
-    """
+
     def test_breath(self):
         lrs, y = AlcoholBreathAnalyser(ill_calibrated=True).sample_lrs()
         bounds = lir.bayeserror.elub(lrs, y, add_misleading=1)
@@ -39,7 +39,7 @@ class TestElub(unittest.TestCase):
         y = np.array([1, 0])
         bounds = lir.bayeserror.elub(lrs, y, add_misleading=1)
         np.testing.assert_almost_equal((1, 1), bounds)
-        """
+
 
     def test_bias(self):
         lrs = np.ones(10) * 10
