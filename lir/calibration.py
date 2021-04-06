@@ -354,7 +354,7 @@ class ELUBbounder(BaseEstimator, TransformerMixin):
         if not also_fit_calibrator:
             # check the model was fitted.
             try:
-                first_step_calibrator.transform(0.5)
+                first_step_calibrator.transform(np.array([0.5]))
             except NotFittedError:
                 print('calibrator should have been fit when setting also_fit_calibrator = False!')
 
