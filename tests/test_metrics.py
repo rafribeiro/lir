@@ -128,6 +128,12 @@ class TestDevPAV(unittest.TestCase):
         PAVresult = (10**-2, 10**2, float('inf'), 0, 10**-3, 10**2)
         self.assertAlmostEqual(devPAVtot_f(LRssame, LRsdif, PAVresult), (1 + 2 * (0.5 * 2 * 1 - 0.5 * 1 * 1) + 0.5)/4)
 
+        # test on dummy data 3, this PAV-transform is finite
+        LRssame = (0.1, 100)
+        LRsdif = (10**-2, 10)
+        PAVresult = (10**-2, 10**2, 10**-3, 10**2)
+        self.assertAlmostEqual(devPAVtot_f(LRssame, LRsdif, PAVresult), (1 + 2 * (0.5 * 2 * 1 - 0.5 * 1 * 1) + 0.5)/4)
+
     def test_calcsurface(self):
         # tests for the calcsurface_f function
 
