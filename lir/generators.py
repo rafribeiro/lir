@@ -55,7 +55,9 @@ class NormalGenerator:
 
         y = np.concatenate([np.zeros(n0), np.ones(n1)])
 
-        return p1, y if prob else p1 / p0, y
+        odds = p1 / p0
+
+        return odds /(1+odds), y if prob else odds, y
 
     @staticmethod
     def _get_probability(X, mu, sigma):
