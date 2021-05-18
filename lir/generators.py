@@ -6,7 +6,7 @@ import numpy as np
 
 class NormalGenerator:
     """
-    Generate data, can be LRs or scores, for two independent normal distributions: H0 and H1.
+    Generate data, can be LRs or scores, for two independent normal distributions: H1 and H2.
     """
 
     def __init__(self, mu0, sigma0, mu1, sigma1):
