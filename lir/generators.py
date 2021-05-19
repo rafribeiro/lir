@@ -31,7 +31,7 @@ class NormalGenerator:
         :param n1: number of LRs from class 1 (H1)
         :returns: an array of LRs and an array of labels (value 0 or 1)
         """
-        return self.__return_scores_or_probs(n0, n1, prob=False)
+        return self.__return_scores_or_lrs(n0, n1, prob=False)
 
     def sample_scores(self, n0, n1):
         """
@@ -41,9 +41,9 @@ class NormalGenerator:
         :param n1: Number of scores from class 1 (H1)
         :return: an array of scores and an array of labels. The scores represent P(H1|x)
         """
-        return self.__return_scores_or_probs(n0, n1, prob=True)
+        return self.__return_scores_or_lrs(n0, n1, prob=True)
 
-    def __return_scores_or_probs(self, n0, n1, prob=True):
+    def __return_scores_or_lrs(self, n0, n1, prob=True):
         """
         Sample scores from both distributions and return either the scores  or the probabilities.
         """
@@ -57,7 +57,7 @@ class NormalGenerator:
 
         odds = p1 / p0
 
-        return odds /(1+odds), y if prob else odds, y
+        return odds / (1+odds), y if prob else odds, y
 
     @staticmethod
     def _get_probability(X, mu, sigma):
