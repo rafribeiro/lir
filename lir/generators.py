@@ -25,7 +25,7 @@ class NormalGenerator:
 
     def sample_lrs(self, n0, n1):
         """
-        Samples LRs in the form P(H1|x)/P(H2|x) for samples from the H2 distribution and the H1 distribution.
+        Samples LRs in the form P(x|H1)/P(x|H2) for samples from the H2 distribution and the H1 distribution.
 
         :param n0: number of LRs from class 0 (H2)
         :param n1: number of LRs from class 1 (H1)
@@ -35,7 +35,7 @@ class NormalGenerator:
 
     def sample_scores(self, n0, n1):
         """
-        Sample scores in the form P(H1|x) for samples from the H2 distribution and the H1 distribution.
+        Sample scores in the form P(x|H1) for samples from the H2 distribution and the H1 distribution.
 
         :param n0: Number of scores from class 0 (H2)
         :param n1: Number of scores from class 1 (H1)
