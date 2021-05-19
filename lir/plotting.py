@@ -340,7 +340,6 @@ def plot_pav(lrs, y, add_misleading=0, show_scatter=True, savefig=None, show=Non
     kw_figure : dict
         Keyword arguments that are passed to matplotlib.pyplot.figure()
     """
-
     pav = IsotonicCalibrator(add_misleading=add_misleading)
     pav_lrs = pav.fit_transform(lrs, y)
 
