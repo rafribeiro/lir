@@ -5,7 +5,7 @@ import numpy as np
 import lir.plotting as plotting
 
 
-class TestLR(unittest.TestCase):
+class TestPlotPav(unittest.TestCase):
     @unittest.mock.patch("%s.plotting.plt" % __name__)
     def test_remove_inf(self, mock_plt):
         x = np.array([1, 1, 0, 0.4, 0.8])
