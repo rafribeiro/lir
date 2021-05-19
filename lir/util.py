@@ -2,7 +2,6 @@ import collections
 
 import numpy as np
 
-
 LR = collections.namedtuple('LR', ['lr', 'p0', 'p1'])
 
 
@@ -64,3 +63,20 @@ def to_odds(p):
 def to_log_odds(p):
     odds = to_odds(p)
     return np.nan_to_num(np.log10(odds))
+
+
+def inf_in_array(x):
+    return any([value in (float('inf'), float('-inf')) for value in x])
+
+
+class InfFilter:
+    def __init__(self, x):
+        self._inf_filter = [value not in (float('inf'), float('-inf')) for value in x]
+
+    def transform(self, x):
+        return x[self._inf_filter]
+
+    def transform_x_y(self, x, y):
+        return x[self._inf_filter], y[self._inf_filter]
+
+
