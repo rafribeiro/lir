@@ -3,15 +3,15 @@ import logging
 import math
 import warnings
 
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 
 from . import lr, CalibratedScorer, Xy_to_Xn
-from .metrics import calculate_lr_statistics
 from .calibration import IsotonicCalibrator
-from .util import Xn_to_Xy, inf_in_array, InfFilter
+from .metrics import calculate_lr_statistics
+from .util import Xn_to_Xy
 
 LOG = logging.getLogger(__name__)
 
@@ -363,13 +363,15 @@ def plot_pav(lrs, y, add_misleading=0, show_scatter=True, savefig=None, show=Non
         If True, show the plot on screen
     kw_figure : dict
         Keyword arguments that are passed to matplotlib.pyplot.figure()
+    ----------
     """
     excluded_values_warning = ""
-    if inf_in_array(lrs):
-        excluded_values_warning = excluded_values_warning + f"{np.sum([lr in (float('inf'), float('-inf')) for lr in lrs])} pre-calibrated lr(s) were inf or -inf and are not visible in this " \
-                                                            "figure!"
-        inf_filter = InfFilter(lrs)
-        lrs, y = inf_filter.transform_x_y(lrs, y)
+    if any([v == float('inf') for v in lrs]):
+        excluded_values_warning = excluded_values_warning + \
+                                  f"{np.sum([v == float('inf') for v in lrs])} " \
+                                  "pre-calibrated lr(s) were inf and are not visible in this " \
+                                  "figure!"
+        lrs, y = lrs[lrs != float('inf')], y[lrs != float('inf')]
 
     pav = IsotonicCalibrator(add_misleading=add_misleading)
     pav_lrs = pav.fit_transform(lrs, y)
@@ -378,7 +380,7 @@ def plot_pav(lrs, y, add_misleading=0, show_scatter=True, savefig=None, show=Non
         llrs = np.log10(lrs)
         pav_llrs = np.log10(pav_lrs)
 
-    xrange = [llrs[llrs != float('-inf')].min() - .5, llrs[llrs != float('inf')].max() + .5]
+    xrange = [llrs[llrs != float('-inf')].min() - .5, llrs.max() + .5]
 
     fig = plt.figure(**kw_figure)
     plt.axis(xrange + xrange)
@@ -394,7 +396,7 @@ def plot_pav(lrs, y, add_misleading=0, show_scatter=True, savefig=None, show=Non
 
     plt.xlabel("pre-calibrated 10log(lr)")
     plt.ylabel("post-calibrated 10log(lr)")
-    plt.text(xrange[0], xrange[-1] + 0.5, excluded_values_warning, ha='left', wrap=True, style='oblique',
+    plt.text(xrange[0], xrange[-1], excluded_values_warning, ha='left', wrap=True, style='oblique',
              fontsize=14)
     plt.grid(True, linestyle=':')
 
