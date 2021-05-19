@@ -364,26 +364,21 @@ def plot_pav(lrs, y, add_misleading=0, show_scatter=True, savefig=None, show=Non
     kw_figure : dict
         Keyword arguments that are passed to matplotlib.pyplot.figure()
     """
+    excluded_values_warning = ""
     if inf_in_array(lrs):
+        excluded_values_warning = excluded_values_warning + f"{np.sum([lr in (float('inf'), float('-inf')) for lr in lrs])} pre-calibrated lr(s) were inf or -inf and are not visible in this " \
+                                                            "figure!"
         inf_filter = InfFilter(lrs)
         lrs, y = inf_filter.transform_x_y(lrs, y)
-        warnings.warn(
-            "Some pre-calibrated lrs were inf or -inf and are ignored for the PAV transformation and subsequent plotting",
-            category=UserWarning)
 
     pav = IsotonicCalibrator(add_misleading=add_misleading)
     pav_lrs = pav.fit_transform(lrs, y)
 
-    if sum(lrs == 0) > 0 or sum(pav_lrs == 0) > 0:
-        mask_zero = np.logical_and(lrs != 0, pav_lrs != 0)
-        lrs, pav_lrs = lrs[mask_zero], pav_lrs[mask_zero]
-        warnings.warn("Encountered lrs of zero which result in -inf when transforming to log scale for plotting. These "
-                      "values will not be shown in figure.", category=UserWarning)
+    with np.errstate(divide='ignore'):
+        llrs = np.log10(lrs)
+        pav_llrs = np.log10(pav_lrs)
 
-    llrs = np.log10(lrs)
-    pav_llrs = np.log10(pav_lrs)
-
-    xrange = [llrs.min() - .5, llrs.max() + .5]
+    xrange = [llrs[llrs != float('-inf')].min() - .5, llrs[llrs != float('inf')].max() + .5]
 
     fig = plt.figure(**kw_figure)
     plt.axis(xrange + xrange)
@@ -399,6 +394,8 @@ def plot_pav(lrs, y, add_misleading=0, show_scatter=True, savefig=None, show=Non
 
     plt.xlabel("pre-calibrated 10log(lr)")
     plt.ylabel("post-calibrated 10log(lr)")
+    plt.text(xrange[0], xrange[-1] + 0.5, excluded_values_warning, ha='left', wrap=True, style='oblique',
+             fontsize=14)
     plt.grid(True, linestyle=':')
 
     if savefig is not None:
