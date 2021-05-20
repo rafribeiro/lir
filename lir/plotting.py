@@ -485,7 +485,7 @@ def plot_tippett(lrs, y, savefig=None, show=None, kw_figure={}):
     plt.close()
 
 
-def plot_score_distribution_and_calibrator_fit(calibrator, scores, y, bins=20, savefig=None, show=None):
+def plot_score_distribution_and_calibrator_fit(calibrator, scores, y,plot_log_odds=False, bins=20, savefig=None, show=None):
     """
     plots the distributions of scores calculated by the (fitted) lr_system, as well as the fitted score distributions/
     score-to-posterior map
@@ -497,21 +497,29 @@ def plot_score_distribution_and_calibrator_fit(calibrator, scores, y, bins=20, s
 
     plt.figure(figsize=(10, 10), dpi=100)
 
-    if inf_in_array(scores):
-        excluded_values_warning = excluded_values_warning + f"{count_inf_in_array(scores)} scores were inf or -inf and were excluded"
-        scores, y = remove_inf_x_y(scores, y)
+    if plot_log_odds:
+        with np.errstate(divide='ignore'):
+            scores = np.log10(scores/(1-scores))
+        if inf_in_array(scores):
+            excluded_values_warning = excluded_values_warning + f"{count_inf_in_array(scores)} scores were inf or -inf and were excluded"
+            scores, y = remove_inf_x_y(scores, y)
 
     heights, bins = np.histogram(scores, bins=bins)
 
-    x = np.arange(min(bins), max(bins), .01)
-    calibrator.transform(x, log_odds=True)
+    x_range = np.arange(min(bins), max(bins), .01)
+    if plot_log_odds:
+        odds = np.power(10, x_range)
+        x = odds / (1 + odds)
+    else:
+        x = x_range
+    calibrator.transform(x)
 
     for cls in np.unique(y):
         plt.hist(scores[y == cls], bins=bins, alpha=.25, density=True,
     label=f'class {cls}')
-    plt.plot(x, calibrator.p1, label='fit class 1')
-    plt.plot(x, calibrator.p0, label='fit class 0')
-    plt.text(x.min(), heights.max(), excluded_values_warning, ha='left', wrap=True, style='oblique',
+    plt.plot(x_range, calibrator.p1, label='fit class 1')
+    plt.plot(x_range, calibrator.p0, label='fit class 0')
+    plt.text(x_range.min(), heights.max(), excluded_values_warning, ha='left', wrap=True, style='oblique',
              fontsize=14)
 
     if savefig is not None:

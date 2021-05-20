@@ -298,17 +298,10 @@ class DummyCalibrator(BaseEstimator, TransformerMixin):
     def fit(self, X, y=None, **fit_params):
         return self
 
-    def transform(self, X, log_odds=False):
-
-        if log_odds:
-            odds = np.power(10, X)
-            self.p0 = 1-(odds/(1+odds))
-            self.p1 = odds/(1+odds)
-            return odds
-        else:
-            self.p0 = (1 - X)
-            self.p1 =  X
-            return to_odds(self.p1)
+    def transform(self, X):
+        self.p0 = (1 - X)
+        self.p1 =  X
+        return to_odds(self.p1)
 
 
 class ELUBbounder(BaseEstimator, TransformerMixin):
