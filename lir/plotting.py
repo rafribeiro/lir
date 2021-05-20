@@ -11,7 +11,7 @@ from tqdm import tqdm
 from . import lr, CalibratedScorer, Xy_to_Xn
 from .calibration import IsotonicCalibrator
 from .metrics import calculate_lr_statistics
-from .util import Xn_to_Xy
+from .util import Xn_to_Xy, inf_in_array, count_inf_in_array, remove_inf_x_y, to_log_odds, to_odds
 
 LOG = logging.getLogger(__name__)
 
@@ -485,7 +485,7 @@ def plot_tippett(lrs, y, savefig=None, show=None, kw_figure={}):
     plt.close()
 
 
-def plot_score_distribution_and_calibrator_fit(calibrator, scores, y, bins=20, savefig=None, show=None):
+def plot_score_distribution_and_calibrator_fit(calibrator, scores, y, plot_log_odds = False, bins=20, savefig=None, show=None):
     """
     plots the distributions of scores calculated by the (fitted) lr_system, as well as the fitted score distributions/
     score-to-posterior map
@@ -493,16 +493,26 @@ def plot_score_distribution_and_calibrator_fit(calibrator, scores, y, bins=20, s
 
     TODO: plot multiple calibrators at once
     """
+    excluded_values_warning = ""
+
     plt.figure(figsize=(10, 10), dpi=100)
+
+    if inf_in_array(scores):
+        excluded_values_warning = excluded_values_warning + f"{count_inf_in_array(scores)} scores were inf or -inf and were excluded"
+        scores, y = remove_inf_x_y(scores, y)
+
+    heights, bins = np.histogram(scores, bins=bins)
+
     x = np.arange(0, 1, .01)
     calibrator.transform(x)
 
-    bins = np.histogram_bin_edges(scores, bins=bins)
     for cls in np.unique(y):
         plt.hist(scores[y == cls], bins=bins, alpha=.25, density=True,
-                 label=f'class {cls}')
+    label=f'class {cls}')
     plt.plot(x, calibrator.p1, label='fit class 1')
     plt.plot(x, calibrator.p0, label='fit class 0')
+    plt.text(x.min(), heights.max(), excluded_values_warning, ha='left', wrap=True, style='oblique',
+             fontsize=14)
 
     if savefig is not None:
         plt.savefig(savefig)

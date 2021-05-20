@@ -64,3 +64,29 @@ def to_log_odds(p):
     odds = to_odds(p)
     return np.nan_to_num(np.log10(odds))
 
+
+def inf_in_array(x):
+    """
+    Checks if there are inf or -inf in array
+    :param x: np.array
+    :return: bool
+    """
+    return any([value in (np.Inf, -np.Inf) for value in x])
+
+def count_inf_in_array(x):
+    """
+    Gets as input np.array and counts the number of inf and -inf values in array
+    :param x: np.array
+    :return: integer count
+    """
+    return np.sum([value in (np.Inf, -np.Inf) for value in x])
+
+def remove_inf_x_y(x, y):
+    """
+    Removes inf and -inf from scores and removes corresponding labels.
+    :param x: np.array with scores or lrs
+    :param y: np.array with labels
+    :return: Tuple[np.array, np.array] where infinity lrs have been removed
+    """
+    inf_filter = [value not in (np.Inf, -np.Inf) for value in x]
+    return x[inf_filter], y[inf_filter]
