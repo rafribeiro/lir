@@ -366,12 +366,12 @@ def plot_pav(lrs, y, add_misleading=0, show_scatter=True, savefig=None, show=Non
     ----------
     """
     excluded_values_warning = ""
-    if any([v == float('inf') for v in lrs]):
+    if any([v == np.Inf for v in lrs]):
         excluded_values_warning = excluded_values_warning + \
-                                  f"{np.sum([v == float('inf') for v in lrs])} " \
+                                  f"{np.sum([v == np.Inf for v in lrs])} " \
                                   "pre-calibrated lr(s) were inf and are not visible in this " \
                                   "figure!"
-        lrs, y = lrs[lrs != float('inf')], y[lrs != float('inf')]
+        lrs, y = lrs[lrs != np.Inf], y[lrs != np.Inf]
 
     pav = IsotonicCalibrator(add_misleading=add_misleading)
     pav_lrs = pav.fit_transform(lrs, y)
@@ -380,7 +380,7 @@ def plot_pav(lrs, y, add_misleading=0, show_scatter=True, savefig=None, show=Non
         llrs = np.log10(lrs)
         pav_llrs = np.log10(pav_lrs)
 
-    xrange = [llrs[llrs != float('-inf')].min() - .5, llrs.max() + .5]
+    xrange = [llrs[llrs != -np.Inf].min() - .5, llrs.max() + .5]
 
     fig = plt.figure(**kw_figure)
     plt.axis(xrange + xrange)
