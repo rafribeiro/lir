@@ -369,8 +369,8 @@ def plot_pav(lrs, y, add_misleading=0, show_scatter=True, savefig=None, show=Non
     if any([v == np.Inf for v in lrs]):
         excluded_values_warning = excluded_values_warning + \
                                   f"{np.sum([v == np.Inf for v in lrs])} " \
-                                  "pre-calibrated lr(s) were inf and are not visible in this " \
-                                  "figure!"
+                                  "pre-calibrated lr(s) were inf and were not used for " \
+                                  "the PAV transformation!"
         lrs, y = lrs[lrs != np.Inf], y[lrs != np.Inf]
 
     pav = IsotonicCalibrator(add_misleading=add_misleading)

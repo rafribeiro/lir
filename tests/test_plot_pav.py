@@ -14,7 +14,8 @@ class TestPlotPav(unittest.TestCase):
             infinite_lrs = x / (1 - x)
         plotting.plot_pav(infinite_lrs, y, add_misleading=1)
         mock_plt.text.assert_called_once_with(-0.6760912590556811, 1.1020599913279625,
-                                              '2 pre-calibrated lr(s) were inf and are not visible in this figure!',
+                                              '2 pre-calibrated lr(s) were inf and were not used for '
+                                              'the PAV transformation!',
                                               fontsize=14, ha='left', style='oblique', wrap=True)
 
 
