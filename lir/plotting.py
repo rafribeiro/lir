@@ -485,7 +485,7 @@ def plot_tippett(lrs, y, savefig=None, show=None, kw_figure={}):
     plt.close()
 
 
-def plot_score_distribution_and_calibrator_fit(calibrator, scores, y, plot_log_odds = False, bins=20, savefig=None, show=None):
+def plot_score_distribution_and_calibrator_fit(calibrator, scores, y, bins=20, savefig=None, show=None):
     """
     plots the distributions of scores calculated by the (fitted) lr_system, as well as the fitted score distributions/
     score-to-posterior map
@@ -503,8 +503,8 @@ def plot_score_distribution_and_calibrator_fit(calibrator, scores, y, plot_log_o
 
     heights, bins = np.histogram(scores, bins=bins)
 
-    x = np.arange(0, 1, .01)
-    calibrator.transform(x)
+    x = np.arange(min(bins), max(bins), .01)
+    calibrator.transform(x, log_odds=True)
 
     for cls in np.unique(y):
         plt.hist(scores[y == cls], bins=bins, alpha=.25, density=True,
