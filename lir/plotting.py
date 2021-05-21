@@ -485,10 +485,16 @@ def plot_tippett(lrs, y, savefig=None, show=None, kw_figure={}):
     plt.close()
 
 
-def plot_score_distribution_and_calibrator_fit(calibrator, scores, y,plot_log_odds=False, bins=20, savefig=None, show=None):
+def plot_score_distribution_and_calibrator_fit(calibrator,
+                                               scores,
+                                               y,
+                                               plot_log_odds=False,
+                                               bins=20,
+                                               savefig=None,
+                                               show=None):
     """
-    plots the distributions of scores calculated by the (fitted) lr_system, as well as the fitted score distributions/
-    score-to-posterior map
+    plots the distributions of scores calculated by the (fitted) lr_system,
+    as well as the fitted score distributions/score-to-posterior map
     (Note - for ELUBbounder calibrator is the firststepcalibrator)
 
     TODO: plot multiple calibrators at once
@@ -501,26 +507,33 @@ def plot_score_distribution_and_calibrator_fit(calibrator, scores, y,plot_log_od
         with np.errstate(divide='ignore'):
             scores = np.log10(scores/(1-scores))
         if inf_in_array(scores):
-            excluded_values_warning = excluded_values_warning + f"{count_inf_in_array(scores)} scores were inf or -inf and were excluded"
+            excluded_values_warning = excluded_values_warning + \
+            f"{count_inf_in_array(scores)} scores were inf or -inf and were excluded"
             scores, y = remove_inf_x_y(scores, y)
 
     heights, bins = np.histogram(scores, bins=bins)
 
-    x_range = np.arange(min(bins), max(bins), .01)
     if plot_log_odds:
+        x_range = np.arange(min(bins), max(bins), (max(bins)-min(bins))/100)
         odds = np.power(10, x_range)
         x = odds / (1 + odds)
     else:
-        x = x_range
+        x = np.arange(0, 1, .01)
+        x_range = x
     calibrator.transform(x)
+
+    if plot_log_odds:
+        # multiply densities by derivative of inverse of log-odds function
+        calibrator.p1 = (np.log(10)*np.power(10, calibrator.p1))/(np.power(10, calibrator.p1)+1)**2
+        calibrator.p0 = (np.log(10)*np.power(10, calibrator.p0))/(np.power(10, calibrator.p0)+1)**2
 
     for cls in np.unique(y):
         plt.hist(scores[y == cls], bins=bins, alpha=.25, density=True,
-    label=f'class {cls}')
+            label=f'class {cls}')
     plt.plot(x_range, calibrator.p1, label='fit class 1')
     plt.plot(x_range, calibrator.p0, label='fit class 0')
-    plt.text(x_range.min(), heights.max(), excluded_values_warning, ha='left', wrap=True, style='oblique',
-             fontsize=14)
+    plt.text(x_range.min(), heights.max(), excluded_values_warning, ha='left',
+             wrap=True, style='oblique', fontsize=14)
 
     if savefig is not None:
         plt.savefig(savefig)
