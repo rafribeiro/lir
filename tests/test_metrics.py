@@ -172,10 +172,25 @@ class TestDevPAV(unittest.TestCase):
         c2 = c(0,-0.5)
         self.assertAlmostEqual(calcsurface_f(c1, c2), 0.75)
 
+
+        #test with negativbe slope
+        c1 = (1, 4)
+        c2 = (2, 2)
+        self.assertEqual(calcsurface_f(c1, c2), None)
+
         # situation 4 of 4 in code below should never occur and results in an error message
 
-    # def test_withoutInf0(self):
-    #     #test
-    #     t = (float('-inf'), 1.0, 2, 3, float('inf'))
-    #     self.assertAlmostEqual(withoutinf0_f(t), list[1,2,3])
+
+    def test_withoutInf0(self):
+        t = (0, 1.0, 2, 3, float('inf'))
+        self.assertListEqual(withoutinf0_f(t), [1,2,3])
+
+        t = (0, 0, 1.0, 2, 3, float('inf'))
+        self.assertListEqual(withoutinf0_f(t), [2,3,4])
+
+        t = (1.0, 2, 3, float('inf'))
+        self.assertListEqual(withoutinf0_f(t), [0,1,2])
+
+        t = (1.0, 2, 3)
+        self.assertListEqual(withoutinf0_f(t), [0, 1, 2])
 

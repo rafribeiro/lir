@@ -125,6 +125,12 @@ def calcsurface_f(c1, c2) :
     # dan xs equals +/- Infinite en is er there is no intersection with the identity line
     # since condition 1 holds the product below is always positive
     surface = (y2 - y1) * (x2 - x1)
+  elif (a < 0) :
+    print("slope is negative; impossible for PAV-transform")
+    print("coordinate 1:", c1)
+    print("coordinate 2:", c2)
+    print("slope is:", a)
+    return(None)
   else :
     # than xs is finite:
     b = y1 - a * x1
