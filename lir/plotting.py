@@ -366,12 +366,14 @@ def plot_pav(lrs, y, add_misleading=0, show_scatter=True, savefig=None, show=Non
     ----------
     """
     excluded_values_warning = ""
+    flag = False
     if any([v == np.Inf for v in lrs]):
-        excluded_values_warning = excluded_values_warning + \
-                                  f"{np.sum([v == np.Inf for v in lrs])} " \
-                                  "pre-calibrated lr(s) were inf and were not used for " \
-                                  "the PAV transformation!"
-        lrs, y = lrs[lrs != np.Inf], y[lrs != np.Inf]
+        # excluded_values_warning = excluded_values_warning + \
+        #                           f"{np.sum([v == np.Inf for v in lrs])} " \
+        #                           "pre-calibrated lr(s) were inf and were not used for " \
+        #                           "the PAV transformation!"
+        # lrs, y = lrs[lrs != np.Inf], y[lrs != np.Inf]
+        flag = True
 
     pav = IsotonicCalibrator(add_misleading=add_misleading)
     pav_lrs = pav.fit_transform(lrs, y)
@@ -380,13 +382,25 @@ def plot_pav(lrs, y, add_misleading=0, show_scatter=True, savefig=None, show=Non
         llrs = np.log10(lrs)
         pav_llrs = np.log10(pav_lrs)
 
-    xrange = [llrs[llrs != -np.Inf].min() - .5, llrs.max() + .5]
+    valid_xrange = [llrs[llrs != -np.Inf].min() - .5, llrs[llrs != np.Inf].max() + .5]
+    plot_xrange = [llrs[llrs != -np.Inf].min() - .75, llrs[llrs != np.Inf].max() + .75]
 
     fig = plt.figure(**kw_figure)
-    plt.axis(xrange + xrange)
-    plt.plot(xrange, xrange)  # rechte lijn door de oorsprong
+    plt.axis(plot_xrange + valid_xrange)
+    plt.plot(valid_xrange, valid_xrange)  # rechte lijn door de oorsprong
+    ticks = np.round(np.arange(round(min(valid_xrange), 1),
+                      max(valid_xrange),
+                      round((max(valid_xrange) - min(valid_xrange)) / 4, 1)), 1)
 
-    line_x = np.arange(*xrange, .01)
+    plt.xticks([list(plot_xrange)[0] + .05] + list(ticks) + [list(plot_xrange)[1] -.05],
+               ['-∞'] + list(ticks.astype(str)) + ['+∞'], )
+    plt.yticks(list(ticks))
+
+    plt.hlines(ticks, -100, 100, linestyle='--', color='grey', linewidth=.5)
+    plt.vlines(ticks, -100, 100, linestyle='--', color='grey', linewidth=.5)
+    plt.grid(False)
+
+    line_x = np.arange(*valid_xrange, .01)
     with np.errstate(divide='ignore'):
         line_y = np.log10(pav.transform(10 ** line_x))
     plt.plot(line_x, line_y)  # pre-/post-calibrated lr fit
@@ -396,9 +410,11 @@ def plot_pav(lrs, y, add_misleading=0, show_scatter=True, savefig=None, show=Non
 
     plt.xlabel("pre-calibrated 10log(lr)")
     plt.ylabel("post-calibrated 10log(lr)")
-    plt.text(xrange[0], xrange[-1], excluded_values_warning, ha='left', wrap=True, style='oblique',
+    plt.text(valid_xrange[0], valid_xrange[-1], excluded_values_warning, ha='left', wrap=True, style='oblique',
              fontsize=14)
-    plt.grid(True, linestyle=':')
+    plt.scatter([list(plot_xrange)[0] + .05] + [list(plot_xrange)[1] -.05],
+                (min(pav_llrs), max(pav_llrs)), facecolors='none',
+                edgecolors='#1f77b4', linestyle=':')
 
     if savefig is not None:
         plt.savefig(savefig)
