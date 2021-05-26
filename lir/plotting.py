@@ -403,7 +403,7 @@ def plot_pav(lrs, y, add_misleading=0, show_scatter=True, savefig=None, show=Non
 
     # when there are infinity values visualize
     if tick_labels_inf:
-        ticks = plt.xticks()[0].tolist()[1:-1]
+        ticks = np.linspace(valid_xrange[0], valid_xrange[1], 6).tolist()
         if len(tick_labels_inf) == 1:
             if tick_labels_inf[0] == '-∞':
                 ticks = [plot_xrange[0]] + ticks

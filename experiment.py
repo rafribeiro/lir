@@ -8,4 +8,4 @@ y = np.array([1,0,0, 1, 1, 0, 1, 1, 0,1,1,1,1])
 with np.errstate(divide='ignore'):
     infinite_lrs = x / (1 - x)
 
-plotting.plot_pav(infinite_lrs, y, add_misleading=1,  show=True)
+plotting.plot_pav(infinite_lrs, y, add_misleading=False,  show=True)
