@@ -365,16 +365,6 @@ def plot_pav(lrs, y, add_misleading=0, show_scatter=True, savefig=None, show=Non
         Keyword arguments that are passed to matplotlib.pyplot.figure()
     ----------
     """
-    excluded_values_warning = ""
-    flag = False
-    if any([v == np.Inf for v in lrs]):
-        # excluded_values_warning = excluded_values_warning + \
-        #                           f"{np.sum([v == np.Inf for v in lrs])} " \
-        #                           "pre-calibrated lr(s) were inf and were not used for " \
-        #                           "the PAV transformation!"
-        # lrs, y = lrs[lrs != np.Inf], y[lrs != np.Inf]
-        flag = True
-
     pav = IsotonicCalibrator(add_misleading=add_misleading)
     pav_lrs = pav.fit_transform(lrs, y)
 
@@ -382,23 +372,47 @@ def plot_pav(lrs, y, add_misleading=0, show_scatter=True, savefig=None, show=Non
         llrs = np.log10(lrs)
         pav_llrs = np.log10(pav_lrs)
 
-    valid_xrange = [llrs[llrs != -np.Inf].min() - .5, llrs[llrs != np.Inf].max() + .5]
-    plot_xrange = [llrs[llrs != -np.Inf].min() - .75, llrs[llrs != np.Inf].max() + .75]
-
     fig = plt.figure(**kw_figure)
+    valid_xrange = [llrs[llrs != -np.Inf].min() - .5, llrs[llrs != np.Inf].max() + .5]
+    plot_xrange = [llrs[llrs != -np.Inf].min() - .5, llrs[llrs != np.Inf].max() + .5]
+
+    x_inf = []
+    y_inf = []
+    tick_labels = []
+    if sum(llrs[llrs == -np.Inf]):
+        tick_labels.append('-∞')
+        plot_xrange = [plot_xrange[0] - 0.8, plot_xrange[1]]
+        x_inf.append(plot_xrange[0] + 0.075)
+        if sum(pav_llrs[pav_llrs == -np.Inf]):
+            y_inf.append(valid_xrange[0] + 0.075)
+        else:
+            y_inf.append(min(pav_llrs))
+
+    if sum(llrs[llrs == np.Inf]):
+        tick_labels.append('+∞')
+        plot_xrange = [plot_xrange[0], plot_xrange[1] + 0.8]
+        x_inf.append(plot_xrange[1] - 0.075)
+        if sum(pav_llrs[pav_llrs == np.Inf]):
+            y_inf.append(valid_xrange[1] - .075)
+        else:
+            y_inf.append(max(pav_llrs))
+
     plt.axis(plot_xrange + valid_xrange)
-    plt.plot(valid_xrange, valid_xrange)  # rechte lijn door de oorsprong
-    ticks = np.round(np.arange(round(min(valid_xrange), 1),
-                      max(valid_xrange),
-                      round((max(valid_xrange) - min(valid_xrange)) / 4, 1)), 1)
-
-    plt.xticks([list(plot_xrange)[0] + .05] + list(ticks) + [list(plot_xrange)[1] -.05],
-               ['-∞'] + list(ticks.astype(str)) + ['+∞'], )
-    plt.yticks(list(ticks))
-
-    plt.hlines(ticks, -100, 100, linestyle='--', color='grey', linewidth=.5)
-    plt.vlines(ticks, -100, 100, linestyle='--', color='grey', linewidth=.5)
-    plt.grid(False)
+    plt.plot(valid_xrange, valid_xrange)
+    if tick_labels:
+        ticks = plt.xticks()[0].tolist()[1:-1]
+        if len(tick_labels) == 1 and tick_labels[0] == '-∞':
+            ticks = [plot_xrange[0]] + ticks
+            tick_labels = tick_labels + [str(round(tick, 1)) for tick in ticks[1:]]
+        elif len(tick_labels) == 1 and tick_labels[0] == '+∞':
+            ticks = ticks + [plot_xrange[1]]
+            tick_labels = [str(round(tick, 1)) for tick in ticks[:-1]] + tick_labels
+        else:
+            ticks = [plot_xrange[0]] + ticks + [plot_xrange[1]]
+            tick_labels = [tick_labels[0]] + [str(round(tick, 1)) for tick in ticks[1:-1]] + [tick_labels[1]]
+        plt.xticks(ticks, tick_labels)
+        plt.scatter(x_inf,
+                 y_inf, facecolors='none', edgecolors='#1f77b4', linestyle=':')
 
     line_x = np.arange(*valid_xrange, .01)
     with np.errstate(divide='ignore'):
@@ -410,11 +424,6 @@ def plot_pav(lrs, y, add_misleading=0, show_scatter=True, savefig=None, show=Non
 
     plt.xlabel("pre-calibrated 10log(lr)")
     plt.ylabel("post-calibrated 10log(lr)")
-    plt.text(valid_xrange[0], valid_xrange[-1], excluded_values_warning, ha='left', wrap=True, style='oblique',
-             fontsize=14)
-    plt.scatter([list(plot_xrange)[0] + .05] + [list(plot_xrange)[1] -.05],
-                (min(pav_llrs), max(pav_llrs)), facecolors='none',
-                edgecolors='#1f77b4', linestyle=':')
 
     if savefig is not None:
         plt.savefig(savefig)
