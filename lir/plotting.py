@@ -378,9 +378,10 @@ def plot_pav(lrs, y, add_misleading=0, show_scatter=True, savefig=None, show=Non
 
     x_inf = []
     y_inf = []
-    tick_labels = []
+    tick_labels_inf = []
+
     if sum(llrs[llrs == -np.Inf]):
-        tick_labels.append('-∞')
+        tick_labels_inf.append('-∞')
         plot_xrange = [plot_xrange[0] - 0.8, plot_xrange[1]]
         x_inf.append(plot_xrange[0] + 0.075)
         if sum(pav_llrs[pav_llrs == -np.Inf]):
@@ -389,7 +390,7 @@ def plot_pav(lrs, y, add_misleading=0, show_scatter=True, savefig=None, show=Non
             y_inf.append(min(pav_llrs))
 
     if sum(llrs[llrs == np.Inf]):
-        tick_labels.append('+∞')
+        tick_labels_inf.append('+∞')
         plot_xrange = [plot_xrange[0], plot_xrange[1] + 0.8]
         x_inf.append(plot_xrange[1] - 0.075)
         if sum(pav_llrs[pav_llrs == np.Inf]):
@@ -399,20 +400,22 @@ def plot_pav(lrs, y, add_misleading=0, show_scatter=True, savefig=None, show=Non
 
     plt.axis(plot_xrange + valid_xrange)
     plt.plot(valid_xrange, valid_xrange)
-    if tick_labels:
+
+    # when there are infinity values visualize
+    if tick_labels_inf:
         ticks = plt.xticks()[0].tolist()[1:-1]
-        if len(tick_labels) == 1 and tick_labels[0] == '-∞':
+        if len(tick_labels_inf) == 1 and tick_labels_inf[0] == '-∞':
             ticks = [plot_xrange[0]] + ticks
-            tick_labels = tick_labels + [str(round(tick, 1)) for tick in ticks[1:]]
-        elif len(tick_labels) == 1 and tick_labels[0] == '+∞':
+            tick_labels_inf = tick_labels_inf + [str(round(tick, 1)) for tick in ticks[1:]]
+        elif len(tick_labels_inf) == 1 and tick_labels_inf[0] == '+∞':
             ticks = ticks + [plot_xrange[1]]
-            tick_labels = [str(round(tick, 1)) for tick in ticks[:-1]] + tick_labels
+            tick_labels_inf = [str(round(tick, 1)) for tick in ticks[:-1]] + tick_labels_inf
         else:
             ticks = [plot_xrange[0]] + ticks + [plot_xrange[1]]
-            tick_labels = [tick_labels[0]] + [str(round(tick, 1)) for tick in ticks[1:-1]] + [tick_labels[1]]
-        plt.xticks(ticks, tick_labels)
+            tick_labels_inf = [tick_labels_inf[0]] + [str(round(tick, 1)) for tick in ticks[1:-1]] + [tick_labels_inf[1]]
+        plt.xticks(ticks, tick_labels_inf)
         plt.scatter(x_inf,
-                 y_inf, facecolors='none', edgecolors='#1f77b4', linestyle=':')
+                    y_inf, facecolors='none', edgecolors='#1f77b4', linestyle=':')
 
     line_x = np.arange(*valid_xrange, .01)
     with np.errstate(divide='ignore'):
