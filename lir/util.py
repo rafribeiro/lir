@@ -64,3 +64,10 @@ def to_log_odds(p):
     odds = to_odds(p)
     return np.nan_to_num(np.log10(odds))
 
+def inf_in_array(x):
+    """
+    Checks if there are inf or -inf in array
+    :param x: np.array
+    :return: bool
+    """
+    return any([value in (np.Inf, -np.Inf) for value in x])
