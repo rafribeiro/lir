@@ -7,12 +7,12 @@ import numpy as np
 from sklearn.base import BaseEstimator
 from sklearn.base import TransformerMixin
 from sklearn.exceptions import NotFittedError
-from sklearn.isotonic import IsotonicRegression
 from sklearn.linear_model import LogisticRegression
 from sklearn.mixture import GaussianMixture
 from sklearn.neighbors import KernelDensity
 
 from .bayeserror import elub
+from .regression import IsotonicRegressionInf
 from .util import Xy_to_Xn, to_odds
 
 LOG = logging.getLogger(__name__)
@@ -259,7 +259,7 @@ class IsotonicCalibrator(BaseEstimator, TransformerMixin):
             warnings.warn('parameter `add_one` is deprecated; use `add_misleading=1` instead')
 
         self.add_misleading = (1 if add_one else 0) + add_misleading
-        self._ir = IsotonicRegression()
+        self._ir = IsotonicRegressionInf()
 
     def fit(self, X, y, **fit_params):
         # prevent extreme LRs

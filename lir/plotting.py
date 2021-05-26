@@ -11,7 +11,8 @@ from tqdm import tqdm
 from . import lr, CalibratedScorer, Xy_to_Xn
 from .calibration import IsotonicCalibrator
 from .metrics import calculate_lr_statistics
-from .util import Xn_to_Xy, inf_in_array, count_inf_in_array, remove_inf_x_y, to_log_odds, to_odds
+
+from .util import Xn_to_Xy, inf_in_array
 
 LOG = logging.getLogger(__name__)
 
@@ -342,11 +343,6 @@ def plot_pav(lrs, y, add_misleading=0, show_scatter=True, savefig=None, show=Non
     Generates a plot of pre- versus post-calibrated LRs using Pool Adjacent
     Violators (PAV).
 
-    Note that post-calibrated LRs may be infinite or negative infinite, unless
-    misleading data points are added. Infinite values cannot be plotted. In
-    fact, if there is a perfect separation between the classes, all values are
-    infinite and nothing will be plotted at all.
-
     Parameters
     ----------
     lrs : numpy array of floats
@@ -365,14 +361,6 @@ def plot_pav(lrs, y, add_misleading=0, show_scatter=True, savefig=None, show=Non
         Keyword arguments that are passed to matplotlib.pyplot.figure()
     ----------
     """
-    excluded_values_warning = ""
-    if any([v == np.Inf for v in lrs]):
-        excluded_values_warning = excluded_values_warning + \
-                                  f"{np.sum([v == np.Inf for v in lrs])} " \
-                                  "pre-calibrated lr(s) were inf and were not used for " \
-                                  "the PAV transformation!"
-        lrs, y = lrs[lrs != np.Inf], y[lrs != np.Inf]
-
     pav = IsotonicCalibrator(add_misleading=add_misleading)
     pav_lrs = pav.fit_transform(lrs, y)
 
@@ -380,13 +368,43 @@ def plot_pav(lrs, y, add_misleading=0, show_scatter=True, savefig=None, show=Non
         llrs = np.log10(lrs)
         pav_llrs = np.log10(pav_lrs)
 
-    xrange = [llrs[llrs != -np.Inf].min() - .5, llrs.max() + .5]
-
     fig = plt.figure(**kw_figure)
-    plt.axis(xrange + xrange)
-    plt.plot(xrange, xrange)  # rechte lijn door de oorsprong
+    valid_xrange = [llrs[llrs != -np.Inf].min() - .5, llrs[llrs != np.Inf].max() + .5]
+    plot_xrange = [llrs[llrs != -np.Inf].min() - .5, llrs[llrs != np.Inf].max() + .5]
 
-    line_x = np.arange(*xrange, .01)
+    # visualize infinity llrs
+    if inf_in_array(llrs):
+        ticks_inf = np.linspace(valid_xrange[0], valid_xrange[1], 6).tolist()
+        tick_labels_inf = [str(round(tick, 1)) for tick in ticks_inf]
+        x_inf = []
+        y_inf = []
+        if sum(llrs[llrs == -np.Inf]):
+            plot_xrange = [plot_xrange[0] - 0.8, plot_xrange[1]]
+            x_inf.append(plot_xrange[0] + 0.075)
+            if sum(pav_llrs[pav_llrs == -np.Inf]):
+                y_inf.append(valid_xrange[0] + 0.075)
+            else:
+                y_inf.append(min(pav_llrs))
+            ticks_inf = [plot_xrange[0]] + ticks_inf
+            tick_labels_inf = ['-∞'] + [label for label in tick_labels_inf]
+
+        if sum(llrs[llrs == np.Inf]):
+            plot_xrange = [plot_xrange[0], plot_xrange[1] + 0.8]
+            x_inf.append(plot_xrange[1] - 0.075)
+            if sum(pav_llrs[pav_llrs == np.Inf]):
+                y_inf.append(valid_xrange[1] - .075)
+            else:
+                y_inf.append(max(pav_llrs))
+            ticks_inf = ticks_inf + [plot_xrange[1]]
+            tick_labels_inf = [label for label in tick_labels_inf] + ['+∞']
+        plt.xticks(ticks_inf, tick_labels_inf)
+        plt.scatter(x_inf,
+                    y_inf, facecolors='none', edgecolors='#1f77b4', linestyle=':')
+
+    plt.axis(plot_xrange + valid_xrange)
+    plt.plot(valid_xrange, valid_xrange)
+    line_x = np.arange(*valid_xrange, .01)
+
     with np.errstate(divide='ignore'):
         line_y = np.log10(pav.transform(10 ** line_x))
     plt.plot(line_x, line_y)  # pre-/post-calibrated lr fit
@@ -396,9 +414,6 @@ def plot_pav(lrs, y, add_misleading=0, show_scatter=True, savefig=None, show=Non
 
     plt.xlabel("pre-calibrated 10log(lr)")
     plt.ylabel("post-calibrated 10log(lr)")
-    plt.text(xrange[0], xrange[-1], excluded_values_warning, ha='left', wrap=True, style='oblique',
-             fontsize=14)
-    plt.grid(True, linestyle=':')
 
     if savefig is not None:
         plt.savefig(savefig)
