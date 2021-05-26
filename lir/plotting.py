@@ -371,6 +371,7 @@ def plot_pav(lrs, y, add_misleading=0, show_scatter=True, savefig=None, show=Non
     valid_xrange = [llrs[llrs != -np.Inf].min() - .5, llrs[llrs != np.Inf].max() + .5]
     plot_xrange = [llrs[llrs != -np.Inf].min() - .5, llrs[llrs != np.Inf].max() + .5]
 
+    # visualize infinity llrs
     if inf_in_array(llrs):
         ticks_inf = np.linspace(valid_xrange[0], valid_xrange[1], 6).tolist()
         tick_labels_inf = [str(round(tick, 1)) for tick in ticks_inf]
@@ -395,15 +396,13 @@ def plot_pav(lrs, y, add_misleading=0, show_scatter=True, savefig=None, show=Non
                 y_inf.append(max(pav_llrs))
             ticks_inf = ticks_inf + [plot_xrange[1]]
             tick_labels_inf = [label for label in tick_labels_inf] + ['+∞']
+        plt.xticks(ticks_inf, tick_labels_inf)
+        plt.scatter(x_inf,
+                    y_inf, facecolors='none', edgecolors='#1f77b4', linestyle=':')
 
     plt.axis(plot_xrange + valid_xrange)
     plt.plot(valid_xrange, valid_xrange)
     line_x = np.arange(*valid_xrange, .01)
-
-    if inf_in_array(llrs):
-        plt.xticks(ticks_inf, tick_labels_inf)
-        plt.scatter(x_inf,
-                    y_inf, facecolors='none', edgecolors='#1f77b4', linestyle=':')
 
     with np.errstate(divide='ignore'):
         line_y = np.log10(pav.transform(10 ** line_x))
