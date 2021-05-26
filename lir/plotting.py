@@ -404,15 +404,17 @@ def plot_pav(lrs, y, add_misleading=0, show_scatter=True, savefig=None, show=Non
     # when there are infinity values visualize
     if tick_labels_inf:
         ticks = plt.xticks()[0].tolist()[1:-1]
-        if len(tick_labels_inf) == 1 and tick_labels_inf[0] == '-∞':
-            ticks = [plot_xrange[0]] + ticks
-            tick_labels_inf = tick_labels_inf + [str(round(tick, 1)) for tick in ticks[1:]]
-        elif len(tick_labels_inf) == 1 and tick_labels_inf[0] == '+∞':
-            ticks = ticks + [plot_xrange[1]]
-            tick_labels_inf = [str(round(tick, 1)) for tick in ticks[:-1]] + tick_labels_inf
+        if len(tick_labels_inf) == 1:
+            if tick_labels_inf[0] == '-∞':
+                ticks = [plot_xrange[0]] + ticks
+                tick_labels_inf = tick_labels_inf + [str(round(tick, 1)) for tick in ticks[1:]]
+            else:
+                ticks = ticks + [plot_xrange[1]]
+                tick_labels_inf = [str(round(tick, 1)) for tick in ticks[:-1]] + tick_labels_inf
         else:
             ticks = [plot_xrange[0]] + ticks + [plot_xrange[1]]
             tick_labels_inf = [tick_labels_inf[0]] + [str(round(tick, 1)) for tick in ticks[1:-1]] + [tick_labels_inf[1]]
+
         plt.xticks(ticks, tick_labels_inf)
         plt.scatter(x_inf,
                     y_inf, facecolors='none', edgecolors='#1f77b4', linestyle=':')
