@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
+from collections import Counter
 
 from . import lr, CalibratedScorer, Xy_to_Xn
 from .calibration import IsotonicCalibrator
@@ -503,7 +504,6 @@ def plot_tippett(lrs, y, savefig=None, show=None, kw_figure={}):
 def plot_score_distribution_and_calibrator_fit(calibrator,
                                                scores,
                                                y,
-                                               plot_log_odds=False,
                                                bins=20,
                                                savefig=None,
                                                show=None):
@@ -514,41 +514,34 @@ def plot_score_distribution_and_calibrator_fit(calibrator,
 
     TODO: plot multiple calibrators at once
     """
-    excluded_values_warning = ""
-
     plt.figure(figsize=(10, 10), dpi=100)
 
-    if plot_log_odds:
-        with np.errstate(divide='ignore'):
-            scores = np.log10(scores/(1-scores))
-        if inf_in_array(scores):
-            excluded_values_warning = excluded_values_warning + \
-            f"{count_inf_in_array(scores)} scores were inf or -inf and were excluded"
-            scores, y = remove_inf_x_y(scores, y)
-
-    heights, bins = np.histogram(scores, bins=bins)
-
-    if plot_log_odds:
-        x_range = np.arange(min(bins), max(bins), (max(bins)-min(bins))/100)
-        odds = np.power(10, x_range)
-        x = odds / (1 + odds)
-    else:
-        x = np.arange(0, 1, .01)
-        x_range = x
+    bins = np.histogram_bin_edges([score for score in scores if score not in (np.Inf, -np.Inf)], bins=bins)
+    x = np.arange(min(bins), max(bins) + 0.01, .01)
     calibrator.transform(x)
 
-    if plot_log_odds:
-        # multiply densities by derivative of inverse of log-odds function
-        calibrator.p1 = (np.log(10)*np.power(10, calibrator.p1))/(np.power(10, calibrator.p1)+1)**2
-        calibrator.p0 = (np.log(10)*np.power(10, calibrator.p0))/(np.power(10, calibrator.p0)+1)**2
+    if inf_in_array(scores):
+        x_range = np.linspace(min(bins), max(bins), 6).tolist()
+        labels = [str(round(tick, 1)) for tick in x_range]
+        step_size = x_range[2] - x_range[1]
+        x_inf = []
+        if any(scores == -np.Inf):
+            x_range = [x_range[0] - step_size] + x_range
+            x_inf.append(x_range[0])
+            labels = ['-∞'] + labels
+        if any(scores == np.Inf):
+            x_range = x_range + [x_range[-1] + step_size]
+            x_inf.append(x_range[-1])
+            labels.append('∞')
+        plt.scatter(x_inf,
+                    [1] * len(x_inf), facecolors='none', edgecolors='#1f77b4', linestyle=':', s=200)
+        plt.xticks(x_range, labels)
 
     for cls in np.unique(y):
         plt.hist(scores[y == cls], bins=bins, alpha=.25, density=True,
-            label=f'class {cls}')
-    plt.plot(x_range, calibrator.p1, label='fit class 1')
-    plt.plot(x_range, calibrator.p0, label='fit class 0')
-    plt.text(x_range.min(), heights.max(), excluded_values_warning, ha='left',
-             wrap=True, style='oblique', fontsize=14)
+                 label=f'class {cls}')
+    plt.plot(x, calibrator.p1, label='fit class 1')
+    plt.plot(x, calibrator.p0, label='fit class 0')
 
     if savefig is not None:
         plt.savefig(savefig)
