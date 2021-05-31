@@ -515,19 +515,16 @@ def plot_score_distribution_and_calibrator_fit(calibrator,
     TODO: plot multiple calibrators at once
     """
     plt.figure(figsize=(10, 10), dpi=100)
+    bins = np.histogram_bin_edges(scores[np.isfinite(scores)], bins=bins)
+    # create weights vector so y-axis is between 0-1
+    weights = [np.ones_like(data)/len(data) for data in [scores[y == cls] for cls in np.unique(y)]]
 
-    bins = np.histogram_bin_edges([score for score in scores if score not in (np.Inf, -np.Inf)], bins=bins)
     x = np.arange(min(bins), max(bins) + 0.01, .01)
     calibrator.transform(x)
 
+    # handle inf values
     if inf_in_array(scores):
         x_inf = []
-        y_inf = 0
-        for cls in np.unique(y):
-            counts, _ = np.histogram([score for score in scores[y == cls] if score not in (np.Inf, -np.Inf)],
-                                     density=True,
-                                     bins=bins)
-            y_inf = counts.max() / 2 if counts.max() / 2 > y_inf else y_inf
         x_range = np.linspace(min(bins), max(bins), 6).tolist()
         labels = [str(round(tick, 1)) for tick in x_range]
         step_size = x_range[2] - x_range[1]
@@ -540,12 +537,12 @@ def plot_score_distribution_and_calibrator_fit(calibrator,
             x_inf.append(x_range[-1])
             labels.append('∞')
         plt.scatter(x_inf,
-                    [y_inf] * len(x_inf), facecolors='none', edgecolors='#1f77b4', linestyle=':', s=200)
+                    [0.05] * len(x_inf), facecolors='none', edgecolors='#1f77b4', linestyle=':', s=200)
         plt.xticks(x_range, labels, fontsize=14)
 
-    for cls in np.unique(y):
-        plt.hist(scores[y == cls], bins=bins, alpha=.25, density=True,
-                 label=f'class {cls}')
+    for cls, weight in zip(np.unique(y), weights):
+        plt.hist(scores[y == cls], bins=bins, alpha=.25,
+                 label=f'class {cls}', weights=weight)
     plt.plot(x, calibrator.p1, label='fit class 1')
     plt.plot(x, calibrator.p0, label='fit class 0')
 
