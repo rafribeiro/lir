@@ -515,30 +515,43 @@ def plot_score_distribution_and_calibrator_fit(calibrator,
     TODO: plot multiple calibrators at once
     """
     plt.figure(figsize=(10, 10), dpi=100)
+    plt.rcParams.update({'font.size': 15})
     bins = np.histogram_bin_edges(scores[np.isfinite(scores)], bins=bins)
+
     # create weights vector so y-axis is between 0-1
-    weights = [np.ones_like(data)/len(data) for data in [scores[y == cls] for cls in np.unique(y)]]
+    scores_by_class = [scores[y == cls] for cls in np.unique(y)]
+    weights = [np.ones_like(data) / len(data) for data in scores_by_class]
 
     x = np.arange(min(bins), max(bins) + 0.01, .01)
     calibrator.transform(x)
 
     # handle inf values
     if inf_in_array(scores):
-        x_inf = []
+        prop_cycle = plt.rcParams['axes.prop_cycle']
+        colors = prop_cycle.by_key()['color']
         x_range = np.linspace(min(bins), max(bins), 6).tolist()
         labels = [str(round(tick, 1)) for tick in x_range]
         step_size = x_range[2] - x_range[1]
+        plotting = []
+
         if (scores == -np.Inf).any():
             x_range = [x_range[0] - step_size] + x_range
-            x_inf.append(x_range[0])
             labels = ['-∞'] + labels
+            for i, s in enumerate(scores_by_class):
+                if (s == -np.Inf).any():
+                    plotting.append((colors[i], x_range[0], np.sum(weights[i][s == -np.Inf])))
+
         if (scores == np.Inf).any():
             x_range = x_range + [x_range[-1] + step_size]
-            x_inf.append(x_range[-1])
             labels.append('∞')
-        plt.scatter(x_inf,
-                    [0.05] * len(x_inf), facecolors='none', edgecolors='#1f77b4', linestyle=':', s=200)
-        plt.xticks(x_range, labels, fontsize=14)
+            for i, s in enumerate(scores_by_class):
+                if (s == np.Inf).any():
+                    plotting.append((colors[i], x_range[-1], np.sum(weights[i][s == np.Inf])))
+
+        plt.xticks(x_range, labels)
+
+        for color, x_coord, y_coord in plotting:
+            plt.bar(x_coord, y_coord, width=step_size / 4, color=color, alpha=0.25, hatch='/')
 
     for cls, weight in zip(np.unique(y), weights):
         plt.hist(scores[y == cls], bins=bins, alpha=.25,
