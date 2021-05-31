@@ -11,7 +11,7 @@ from tqdm import tqdm
 from . import lr, CalibratedScorer, Xy_to_Xn
 from .calibration import IsotonicCalibrator
 from .metrics import calculate_lr_statistics
-from .util import Xn_to_Xy, inf_in_array
+from .util import Xn_to_Xy
 
 LOG = logging.getLogger(__name__)
 
@@ -368,30 +368,55 @@ def plot_pav(lrs, y, add_misleading=0, show_scatter=True, savefig=None, show=Non
         pav_llrs = np.log10(pav_lrs)
 
     fig = plt.figure(**kw_figure)
-    valid_xrange = [llrs[llrs != -np.Inf].min() - .5, llrs[llrs != np.Inf].max() + .5]
-    plot_xrange = [llrs[llrs != -np.Inf].min() - .5, llrs[llrs != np.Inf].max() + .5]
+    valid_xrange = plot_xrange = plot_yrange = [llrs[llrs != -np.Inf].min() - .5, llrs[llrs != np.Inf].max() + .5]
+
+    # visualize infinity llrs
+    if np.isinf(pav_llrs).any():
+        ticks_inf = np.linspace(valid_xrange[0], valid_xrange[1], 6).tolist()
+        step_size = ticks_inf[2] - ticks_inf[1]
+        tick_labels_inf = [str(round(tick, 1)) for tick in ticks_inf]
+        x_inf = []
+        y_inf = []
+        if (pav_llrs == -np.Inf).any():
+            plot_yrange = [plot_yrange[0] - step_size, plot_yrange[1]]
+            y_inf = y_inf + [plot_yrange[0] + step_size/10] * np.sum(pav_llrs == -np.Inf)
+            x_inf = x_inf + llrs[pav_llrs == -np.Inf].tolist()
+            ticks_inf = [plot_yrange[0]] + ticks_inf
+            tick_labels_inf = ['-∞'] + [label for label in tick_labels_inf]
+
+        if (pav_llrs == np.Inf).any():
+            plot_yrange = [plot_yrange[0], plot_yrange[1] + step_size]
+            y_inf = y_inf + [plot_yrange[1] - step_size/10] * np.sum(pav_llrs == np.Inf)
+            x_inf = x_inf + llrs[pav_llrs == np.Inf].tolist()
+            ticks_inf = ticks_inf + [plot_yrange[1]]
+            tick_labels_inf = [label for label in tick_labels_inf] + ['+∞']
+        plt.yticks(ticks_inf, tick_labels_inf)
+        plt.scatter(x_inf,
+                    y_inf, facecolors='none', edgecolors='#1f77b4', linestyle=':')
+
 
     # visualize infinity llrs
     if np.isinf(llrs).any():
         ticks_inf = np.linspace(valid_xrange[0], valid_xrange[1], 6).tolist()
+        step_size = ticks_inf[2] - ticks_inf[1]
         tick_labels_inf = [str(round(tick, 1)) for tick in ticks_inf]
         x_inf = []
         y_inf = []
         if (llrs == -np.Inf).any():
-            plot_xrange = [plot_xrange[0] - 0.8, plot_xrange[1]]
-            x_inf.append(plot_xrange[0] + 0.075)
+            plot_xrange = [plot_xrange[0] - step_size, plot_xrange[1]]
+            x_inf.append(plot_xrange[0] + step_size/10)
             if sum(pav_llrs[pav_llrs == -np.Inf]):
-                y_inf.append(valid_xrange[0] + 0.075)
+                y_inf.append(valid_xrange[0] + step_size/10)
             else:
                 y_inf.append(min(pav_llrs))
             ticks_inf = [plot_xrange[0]] + ticks_inf
             tick_labels_inf = ['-∞'] + [label for label in tick_labels_inf]
 
         if (llrs == np.Inf).any():
-            plot_xrange = [plot_xrange[0], plot_xrange[1] + 0.8]
-            x_inf.append(plot_xrange[1] - 0.075)
+            plot_xrange = [plot_xrange[0], plot_xrange[1] + step_size]
+            x_inf.append(plot_xrange[1] - step_size/10)
             if sum(pav_llrs[pav_llrs == np.Inf]):
-                y_inf.append(valid_xrange[1] - .075)
+                y_inf.append(valid_xrange[1] - step_size/10)
             else:
                 y_inf.append(max(pav_llrs))
             ticks_inf = ticks_inf + [plot_xrange[1]]
@@ -400,13 +425,15 @@ def plot_pav(lrs, y, add_misleading=0, show_scatter=True, savefig=None, show=Non
         plt.scatter(x_inf,
                     y_inf, facecolors='none', edgecolors='#1f77b4', linestyle=':')
 
-    plt.axis(plot_xrange + valid_xrange)
     plt.plot(valid_xrange, valid_xrange)
     line_x = np.arange(*valid_xrange, .01)
 
     with np.errstate(divide='ignore'):
         line_y = np.log10(pav.transform(10 ** line_x))
-    plt.plot(line_x, line_y)  # pre-/post-calibrated lr fit
+    plt.plot(line_x, line_y)
+
+    plt.axis(plot_xrange + plot_yrange)
+ # pre-/post-calibrated lr fit
 
     if show_scatter:
         plt.scatter(llrs, pav_llrs)  # scatter plot of measured lrs
