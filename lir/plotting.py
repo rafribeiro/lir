@@ -372,12 +372,12 @@ def plot_pav(lrs, y, add_misleading=0, show_scatter=True, savefig=None, show=Non
     plot_xrange = [llrs[llrs != -np.Inf].min() - .5, llrs[llrs != np.Inf].max() + .5]
 
     # visualize infinity llrs
-    if inf_in_array(llrs):
+    if np.isinf(llrs).any():
         ticks_inf = np.linspace(valid_xrange[0], valid_xrange[1], 6).tolist()
         tick_labels_inf = [str(round(tick, 1)) for tick in ticks_inf]
         x_inf = []
         y_inf = []
-        if sum(llrs[llrs == -np.Inf]):
+        if (llrs == -np.Inf).any():
             plot_xrange = [plot_xrange[0] - 0.8, plot_xrange[1]]
             x_inf.append(plot_xrange[0] + 0.075)
             if sum(pav_llrs[pav_llrs == -np.Inf]):
@@ -387,7 +387,7 @@ def plot_pav(lrs, y, add_misleading=0, show_scatter=True, savefig=None, show=Non
             ticks_inf = [plot_xrange[0]] + ticks_inf
             tick_labels_inf = ['-∞'] + [label for label in tick_labels_inf]
 
-        if sum(llrs[llrs == np.Inf]):
+        if (llrs == np.Inf).any():
             plot_xrange = [plot_xrange[0], plot_xrange[1] + 0.8]
             x_inf.append(plot_xrange[1] - 0.075)
             if sum(pav_llrs[pav_llrs == np.Inf]):
