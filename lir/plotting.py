@@ -370,58 +370,64 @@ def plot_pav(lrs, y, add_misleading=0, show_scatter=True, savefig=None, show=Non
     fig = plt.figure(**kw_figure)
     valid_xrange = plot_xrange = plot_yrange = [llrs[llrs != -np.Inf].min() - .5, llrs[llrs != np.Inf].max() + .5]
 
-    # visualize infinity llrs
-    if np.isinf(pav_llrs).any():
-        ticks_inf = np.linspace(valid_xrange[0], valid_xrange[1], 6).tolist()
-        step_size = ticks_inf[2] - ticks_inf[1]
-        tick_labels_inf = [str(round(tick, 1)) for tick in ticks_inf]
+    # add points for infinite values
+    if np.logical_or(np.isinf(pav_llrs), np.isinf(llrs)).any():
+        ticks = np.linspace(valid_xrange[0], valid_xrange[1], 6).tolist()
+        tick_labels = [str(round(tick, 1)) for tick in ticks]
+        step_size = ticks[2] - ticks[1]
+        margin = step_size / 10
         x_inf = []
         y_inf = []
-        if (pav_llrs == -np.Inf).any():
-            plot_yrange = [plot_yrange[0] - step_size, plot_yrange[1]]
-            y_inf = y_inf + [plot_yrange[0] + step_size/10] * np.sum(pav_llrs == -np.Inf)
-            x_inf = x_inf + llrs[pav_llrs == -np.Inf].tolist()
-            ticks_inf = [plot_yrange[0]] + ticks_inf
-            tick_labels_inf = ['-∞'] + [label for label in tick_labels_inf]
 
-        if (pav_llrs == np.Inf).any():
-            plot_yrange = [plot_yrange[0], plot_yrange[1] + step_size]
-            y_inf = y_inf + [plot_yrange[1] - step_size/10] * np.sum(pav_llrs == np.Inf)
-            x_inf = x_inf + llrs[pav_llrs == np.Inf].tolist()
-            ticks_inf = ticks_inf + [plot_yrange[1]]
-            tick_labels_inf = [label for label in tick_labels_inf] + ['+∞']
-        plt.yticks(ticks_inf, tick_labels_inf)
-        plt.scatter(x_inf,
-                    y_inf, facecolors='none', edgecolors='#1f77b4', linestyle=':')
+        # handle infinite values after pav transformation but not before
+        if np.isinf(pav_llrs).any():
+            ticks_y = ticks
+            tick_labels_y = tick_labels
 
+            if (pav_llrs == -np.Inf).any():
+                # pre pav -infs are already considered when checking for pre pav llrs below
+                # therefore they need to be masked here
+                mask_pre_pav_neg_inf = np.logical_and(pav_llrs == -np.Inf, llrs != -np.Inf)
+                plot_yrange = [plot_yrange[0] - step_size, plot_yrange[1]]
+                y_inf += [plot_yrange[0] + margin] * np.sum(mask_pre_pav_neg_inf)
+                x_inf += llrs[mask_pre_pav_neg_inf].tolist()
+                ticks_y = [plot_yrange[0]] + ticks_y
+                tick_labels_y = ['-∞'] + [label for label in tick_labels_y]
 
-    # visualize infinity llrs
-    if np.isinf(llrs).any():
-        ticks_inf = np.linspace(valid_xrange[0], valid_xrange[1], 6).tolist()
-        step_size = ticks_inf[2] - ticks_inf[1]
-        tick_labels_inf = [str(round(tick, 1)) for tick in ticks_inf]
-        x_inf = []
-        y_inf = []
-        if (llrs == -np.Inf).any():
-            plot_xrange = [plot_xrange[0] - step_size, plot_xrange[1]]
-            x_inf.append(plot_xrange[0] + step_size/10)
-            if sum(pav_llrs[pav_llrs == -np.Inf]):
-                y_inf.append(valid_xrange[0] + step_size/10)
-            else:
-                y_inf.append(min(pav_llrs))
-            ticks_inf = [plot_xrange[0]] + ticks_inf
-            tick_labels_inf = ['-∞'] + [label for label in tick_labels_inf]
+            if (pav_llrs == np.Inf).any():
+                # pre pav +infs are already considered when checking for pre pav llrs below
+                # therefore they need to be masked here
+                mask_pre_pav_pos_inf = np.logical_and(pav_llrs == np.Inf, llrs != np.Inf)
+                plot_yrange = [plot_yrange[0], plot_yrange[1] + step_size]
+                y_inf += [plot_yrange[1] - margin] * np.sum(mask_pre_pav_pos_inf)
+                x_inf += llrs[mask_pre_pav_pos_inf].tolist()
+                ticks_y.append(plot_yrange[1])
+                tick_labels_y = [label for label in tick_labels_y] + ['+∞']
 
-        if (llrs == np.Inf).any():
-            plot_xrange = [plot_xrange[0], plot_xrange[1] + step_size]
-            x_inf.append(plot_xrange[1] - step_size/10)
-            if sum(pav_llrs[pav_llrs == np.Inf]):
-                y_inf.append(valid_xrange[1] - step_size/10)
-            else:
-                y_inf.append(max(pav_llrs))
-            ticks_inf = ticks_inf + [plot_xrange[1]]
-            tick_labels_inf = [label for label in tick_labels_inf] + ['+∞']
-        plt.xticks(ticks_inf, tick_labels_inf)
+            plt.yticks(ticks_y, tick_labels_y)
+
+        if np.isinf(llrs).any():
+            ticks_x = ticks
+            tick_labels_x = tick_labels
+
+            if (llrs == -np.Inf).any():
+                plot_xrange = [plot_xrange[0] - step_size, plot_xrange[1]]
+                x_inf += [plot_xrange[0] + margin] * np.sum(llrs == -np.Inf)
+                y_inf += [pav_llr + margin if pav_llr != -np.Inf else plot_yrange[0] + margin for pav_llr in
+                          pav_llrs[llrs == -np.Inf]]
+                ticks_x = [plot_xrange[0]] + ticks_x
+                tick_labels_x = ['-∞'] + [label for label in tick_labels_x]
+
+            if (llrs == np.Inf).any():
+                plot_xrange = [plot_xrange[0], plot_xrange[1] + step_size]
+                x_inf += [plot_xrange[1] - margin] * np.sum(llrs == np.Inf)
+                y_inf += [pav_llr - margin if pav_llr != np.Inf else plot_yrange[1] - margin for pav_llr in
+                          pav_llrs[llrs == np.Inf]]
+                ticks_x.append(plot_xrange[1])
+                tick_labels_x = [label for label in tick_labels_x] + ['+∞']
+
+            plt.xticks(ticks_x, tick_labels_x)
+
         plt.scatter(x_inf,
                     y_inf, facecolors='none', edgecolors='#1f77b4', linestyle=':')
 
@@ -433,7 +439,7 @@ def plot_pav(lrs, y, add_misleading=0, show_scatter=True, savefig=None, show=Non
     plt.plot(line_x, line_y)
 
     plt.axis(plot_xrange + plot_yrange)
- # pre-/post-calibrated lr fit
+    # pre-/post-calibrated lr fit
 
     if show_scatter:
         plt.scatter(llrs, pav_llrs)  # scatter plot of measured lrs
