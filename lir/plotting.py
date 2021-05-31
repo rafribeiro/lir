@@ -521,21 +521,27 @@ def plot_score_distribution_and_calibrator_fit(calibrator,
     calibrator.transform(x)
 
     if inf_in_array(scores):
+        x_inf = []
+        y_inf = 0
+        for cls in np.unique(y):
+            counts, _ = np.histogram([score for score in scores[y == cls] if score not in (np.Inf, -np.Inf)],
+                                     density=True,
+                                     bins=bins)
+            y_inf = counts.max() / 2 if counts.max() / 2 > y_inf else y_inf
         x_range = np.linspace(min(bins), max(bins), 6).tolist()
         labels = [str(round(tick, 1)) for tick in x_range]
         step_size = x_range[2] - x_range[1]
-        x_inf = []
-        if any(scores == -np.Inf):
+        if (scores == -np.Inf).any():
             x_range = [x_range[0] - step_size] + x_range
             x_inf.append(x_range[0])
             labels = ['-∞'] + labels
-        if any(scores == np.Inf):
+        if (scores == np.Inf).any():
             x_range = x_range + [x_range[-1] + step_size]
             x_inf.append(x_range[-1])
             labels.append('∞')
         plt.scatter(x_inf,
-                    [1] * len(x_inf), facecolors='none', edgecolors='#1f77b4', linestyle=':', s=200)
-        plt.xticks(x_range, labels)
+                    [y_inf] * len(x_inf), facecolors='none', edgecolors='#1f77b4', linestyle=':', s=200)
+        plt.xticks(x_range, labels, fontsize=14)
 
     for cls in np.unique(y):
         plt.hist(scores[y == cls], bins=bins, alpha=.25, density=True,
