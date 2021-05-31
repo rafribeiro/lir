@@ -7,13 +7,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
-from collections import Counter
 
 from . import lr, CalibratedScorer, Xy_to_Xn
 from .calibration import IsotonicCalibrator
 from .metrics import calculate_lr_statistics
-
-from .util import Xn_to_Xy, inf_in_array
+from .util import Xn_to_Xy
 
 LOG = logging.getLogger(__name__)
 
@@ -526,12 +524,13 @@ def plot_score_distribution_and_calibrator_fit(calibrator,
     calibrator.transform(x)
 
     # handle inf values
-    if inf_in_array(scores):
+    if np.isinf(scores).any():
         prop_cycle = plt.rcParams['axes.prop_cycle']
         colors = prop_cycle.by_key()['color']
         x_range = np.linspace(min(bins), max(bins), 6).tolist()
         labels = [str(round(tick, 1)) for tick in x_range]
         step_size = x_range[2] - x_range[1]
+        bar_width = step_size / 4
         plot_args_inf = []
 
         if (scores == -np.Inf).any():
@@ -539,19 +538,21 @@ def plot_score_distribution_and_calibrator_fit(calibrator,
             labels = ['-∞'] + labels
             for i, s in enumerate(scores_by_class):
                 if (s == -np.Inf).any():
-                    plot_args_inf.append((colors[i], x_range[0], np.sum(weights[i][s == -np.Inf])))
+                    plot_args_inf.append(
+                        (colors[i], x_range[0] + bar_width if i else x_range[0], np.sum(weights[i][s == -np.Inf])))
 
         if (scores == np.Inf).any():
             x_range = x_range + [x_range[-1] + step_size]
             labels.append('∞')
             for i, s in enumerate(scores_by_class):
                 if (s == np.Inf).any():
-                    plot_args_inf.append((colors[i], x_range[-1], np.sum(weights[i][s == np.Inf])))
+                    plot_args_inf.append(
+                        (colors[i], x_range[-1] - bar_width if i else x_range[-1], np.sum(weights[i][s == np.Inf])))
 
         plt.xticks(x_range, labels)
 
         for color, x_coord, y_coord in plot_args_inf:
-            plt.bar(x_coord, y_coord, width=step_size / 4, color=color, alpha=0.25, hatch='/')
+            plt.bar(x_coord, y_coord, width=bar_width, color=color, alpha=0.25, hatch='/')
 
     for cls, weight in zip(np.unique(y), weights):
         plt.hist(scores[y == cls], bins=bins, alpha=.25,
