@@ -532,25 +532,25 @@ def plot_score_distribution_and_calibrator_fit(calibrator,
         x_range = np.linspace(min(bins), max(bins), 6).tolist()
         labels = [str(round(tick, 1)) for tick in x_range]
         step_size = x_range[2] - x_range[1]
-        plotting = []
+        plot_args_inf = []
 
         if (scores == -np.Inf).any():
             x_range = [x_range[0] - step_size] + x_range
             labels = ['-∞'] + labels
             for i, s in enumerate(scores_by_class):
                 if (s == -np.Inf).any():
-                    plotting.append((colors[i], x_range[0], np.sum(weights[i][s == -np.Inf])))
+                    plot_args_inf.append((colors[i], x_range[0], np.sum(weights[i][s == -np.Inf])))
 
         if (scores == np.Inf).any():
             x_range = x_range + [x_range[-1] + step_size]
             labels.append('∞')
             for i, s in enumerate(scores_by_class):
                 if (s == np.Inf).any():
-                    plotting.append((colors[i], x_range[-1], np.sum(weights[i][s == np.Inf])))
+                    plot_args_inf.append((colors[i], x_range[-1], np.sum(weights[i][s == np.Inf])))
 
         plt.xticks(x_range, labels)
 
-        for color, x_coord, y_coord in plotting:
+        for color, x_coord, y_coord in plot_args_inf:
             plt.bar(x_coord, y_coord, width=step_size / 4, color=color, alpha=0.25, hatch='/')
 
     for cls, weight in zip(np.unique(y), weights):
