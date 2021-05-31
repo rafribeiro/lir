@@ -5,8 +5,9 @@ from sklearn.utils import check_array, check_consistent_length
 
 class IsotonicRegressionInf(IsotonicRegression):
     """
-    Wrapper around sklearn IsotonicRegression which can handle Inf and -Inf values. Sklearn implementation IsotonicRegression class
-    throws an error when values are Inf or -Inf.
+    Sklearn implementation IsotonicRegression throws an error when values are Inf or -Inf when in fact IsotonicRegression
+    can handle infinite values. This wrapper around the sklearn implementation of IsotonicRegression prevents the error
+    being thrown when Inf or -Inf values are provided.
     """
     def fit(self, X, y, sample_weight=None):
         """Fit the model using X, y as training data.
