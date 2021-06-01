@@ -381,29 +381,16 @@ def plot_pav(lrs, y, add_misleading=0, show_scatter=True, savefig=None, show=Non
 
         # handle infinite values after pav transformation but not before
         if np.isinf(pav_llrs).any():
-            ticks_y = ticks
-            tick_labels_y = tick_labels
-
-            if np.isneginf(pav_llrs).any():
-                # pre pav -infs are already considered when checking for pre pav llrs below
-                # therefore they need to be masked here
-                mask_pre_pav_neg_inf = np.logical_and(np.isneginf(pav_llrs), np.isfinite(llrs))
-                plot_yrange = [plot_yrange[0] - step_size, plot_yrange[1]]
-                y_inf += [plot_yrange[0] + margin] * np.sum(mask_pre_pav_neg_inf)
-                x_inf += llrs[mask_pre_pav_neg_inf].tolist()
-                ticks_y = [plot_yrange[0]] + ticks_y
-                tick_labels_y = ['-∞'] + [label for label in tick_labels_y]
-
-            if np.isposinf(pav_llrs).any():
-                # pre pav +infs are already considered when checking for pre pav llrs below
-                # therefore they need to be masked here
-                mask_pre_pav_pos_inf = np.logical_and(np.isposinf(pav_llrs), np.isfinite(llrs))
-                plot_yrange = [plot_yrange[0], plot_yrange[1] + step_size]
-                y_inf += [plot_yrange[1] - margin] * np.sum(mask_pre_pav_pos_inf)
-                x_inf += llrs[mask_pre_pav_pos_inf].tolist()
-                ticks_y.append(plot_yrange[1])
-                tick_labels_y = [label for label in tick_labels_y] + ['+∞']
-
+            mask_pre_pav_neg_inf = np.logical_and(np.isneginf(pav_llrs), np.isfinite(llrs))
+            mask_pre_pav_pos_inf = np.logical_and(np.isposinf(pav_llrs), np.isfinite(llrs))
+            plot_yrange = [plot_yrange[0] - (step_size * mask_pre_pav_neg_inf.any()),
+                           plot_yrange[1] + (step_size * mask_pre_pav_pos_inf.any())]
+            y_inf += [plot_yrange[0] + margin] * np.sum(mask_pre_pav_neg_inf) + [plot_yrange[1] - margin] * np.sum(
+                mask_pre_pav_pos_inf)
+            x_inf += llrs[mask_pre_pav_neg_inf].tolist() + llrs[mask_pre_pav_pos_inf].tolist()
+            tick_labels_y = ['-∞'] * mask_pre_pav_neg_inf.any() + tick_labels + ['+∞'] * mask_pre_pav_neg_inf.any()
+            ticks_y = [plot_yrange[0]] * mask_pre_pav_neg_inf.any() + ticks + [
+                plot_yrange[1]] * mask_pre_pav_pos_inf.any()
             plt.yticks(ticks_y, tick_labels_y)
 
         if np.isinf(llrs).any():
