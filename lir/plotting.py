@@ -537,7 +537,7 @@ def plot_score_distribution_and_calibrator_fit(calibrator,
             x_range = [x_range[0] - step_size] + x_range
             labels = ['-∞'] + labels
             for i, s in enumerate(scores_by_class):
-                if (s == -np.Inf).any():
+                if np.isneginf(s).any():
                     plot_args_inf.append(
                         (colors[i], x_range[0] + bar_width if i else x_range[0], np.sum(weights[i][np.isneginf(s)])))
 
@@ -545,7 +545,7 @@ def plot_score_distribution_and_calibrator_fit(calibrator,
             x_range = x_range + [x_range[-1] + step_size]
             labels.append('∞')
             for i, s in enumerate(scores_by_class):
-                if (s == np.Inf).any():
+                if np.isposinf(s).any():
                     plot_args_inf.append(
                         (colors[i], x_range[-1] - bar_width if i else x_range[-1], np.sum(weights[i][np.isposinf(s)])))
 
