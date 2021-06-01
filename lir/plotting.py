@@ -379,32 +379,47 @@ def plot_pav(lrs, y, add_misleading=0, show_scatter=True, savefig=None, show=Non
         x_inf = []
         y_inf = []
 
+        def adjust_ticks_labels_and_range(neg_inf, pos_inf, plot_range):
+            nonlocal ticks, tick_labels, step_size
+            plot_range = [plot_range[0] - (step_size * neg_inf.any()),
+                          plot_range[1] + (step_size * pos_inf.any())]
+            ticks = [plot_range[0]] * neg_inf.any() + ticks + [
+                plot_range[1]] * pos_inf.any()
+            tick_labels = ['-∞'] * neg_inf.any() + tick_labels + ['+∞'] * pos_inf.any()
+
+            return plot_range, ticks, tick_labels
+
+        def infs_llrs_to_axis(plot_range, neg_inf, pos_inf):
+            nonlocal margin
+            return [plot_range[0] + margin] * np.sum(neg_inf) + [plot_range[1] - margin] * np.sum(
+                pos_inf)
+
         # handle infinite values after pav transformation but not before
         if np.isinf(pav_llrs).any():
+            # create masks so only values that are not finite after transform but finite before transform
+            # are used. Not finite values before transform are handled below.
             mask_pre_pav_neg_inf = np.logical_and(np.isneginf(pav_llrs), np.isfinite(llrs))
             mask_pre_pav_pos_inf = np.logical_and(np.isposinf(pav_llrs), np.isfinite(llrs))
-            plot_yrange = [plot_yrange[0] - (step_size * mask_pre_pav_neg_inf.any()),
-                           plot_yrange[1] + (step_size * mask_pre_pav_pos_inf.any())]
-            y_inf += [plot_yrange[0] + margin] * np.sum(mask_pre_pav_neg_inf) + [plot_yrange[1] - margin] * np.sum(
-                mask_pre_pav_pos_inf)
+            plot_yrange, ticks_y, tick_labels_y = adjust_ticks_labels_and_range(mask_pre_pav_neg_inf,
+                                                                                mask_pre_pav_pos_inf,
+                                                                                plot_yrange)
+            y_inf += infs_llrs_to_axis(plot_yrange, mask_pre_pav_neg_inf, mask_pre_pav_pos_inf)
             x_inf += llrs[mask_pre_pav_neg_inf].tolist() + llrs[mask_pre_pav_pos_inf].tolist()
-            tick_labels_y = ['-∞'] * mask_pre_pav_neg_inf.any() + tick_labels + ['+∞'] * mask_pre_pav_neg_inf.any()
-            ticks_y = [plot_yrange[0]] * mask_pre_pav_neg_inf.any() + ticks + [
-                plot_yrange[1]] * mask_pre_pav_pos_inf.any()
+
             plt.yticks(ticks_y, tick_labels_y)
 
         # handle infinite values before pav transformation
         if np.isinf(llrs).any():
-            plot_xrange = [plot_xrange[0] - step_size * np.isneginf(llrs).any(),
-                           plot_xrange[1] + step_size * np.isposinf(llrs).any()]
-            x_inf += [plot_xrange[0] + margin] * np.sum(np.isneginf(llrs)) + [plot_xrange[1] - margin] * np.sum(
-                np.isposinf(llrs))
+            plot_xrange, ticks_x, tick_labels_x = adjust_ticks_labels_and_range(np.isneginf(llrs),
+                                                                                np.isposinf(llrs),
+                                                                                plot_xrange)
+            x_inf += infs_llrs_to_axis(plot_xrange, np.isneginf(llrs), np.isposinf(llrs))
             y_inf += [pav_llr + margin if pav_llr != -np.Inf else plot_yrange[0] + margin for pav_llr in
-                      pav_llrs[np.isneginf(llrs)]] + [pav_llr - margin if pav_llr != np.Inf else plot_yrange[1] - margin
-                                                      for pav_llr in
-                                                      pav_llrs[np.isposinf(llrs)]]
-            ticks_x = [plot_xrange[0]] * np.isneginf(llrs).any() + ticks + [plot_xrange[1]] * np.isposinf(llrs).any()
-            tick_labels_x = ['-∞'] * np.isneginf(llrs).any() + tick_labels + ['+∞'] * np.isposinf(llrs).any()
+                      pav_llrs[np.isneginf(llrs)]]
+            y_inf += [pav_llr - margin if pav_llr != np.Inf else plot_yrange[1] - margin
+                      for pav_llr in
+                      pav_llrs[np.isposinf(llrs)]]
+
             plt.xticks(ticks_x, tick_labels_x)
 
         plt.scatter(x_inf,
