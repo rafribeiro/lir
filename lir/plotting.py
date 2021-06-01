@@ -398,13 +398,13 @@ def plot_pav(lrs, y, add_misleading=0, show_scatter=True, savefig=None, show=Non
         if np.isinf(pav_llrs).any():
             # create masks so only values that are not finite after transform but finite before transform
             # are used. Not finite values before transform are handled below.
-            mask_pre_pav_neg_inf = np.logical_and(np.isneginf(pav_llrs), np.isfinite(llrs))
-            mask_pre_pav_pos_inf = np.logical_and(np.isposinf(pav_llrs), np.isfinite(llrs))
-            plot_yrange, ticks_y, tick_labels_y = adjust_ticks_labels_and_range(mask_pre_pav_neg_inf,
-                                                                                mask_pre_pav_pos_inf,
+            mask_pre_pav_inf_neg = np.logical_and(np.isneginf(pav_llrs), np.isfinite(llrs))
+            mask_pre_pav_inf_pos = np.logical_and(np.isposinf(pav_llrs), np.isfinite(llrs))
+            plot_yrange, ticks_y, tick_labels_y = adjust_ticks_labels_and_range(mask_pre_pav_inf_neg,
+                                                                                mask_pre_pav_inf_pos,
                                                                                 plot_yrange)
-            y_inf += infs_llrs_to_axis(plot_yrange, mask_pre_pav_neg_inf, mask_pre_pav_pos_inf)
-            x_inf += llrs[mask_pre_pav_neg_inf].tolist() + llrs[mask_pre_pav_pos_inf].tolist()
+            y_inf += infs_llrs_to_axis(plot_yrange, mask_pre_pav_inf_neg, mask_pre_pav_inf_pos)
+            x_inf += llrs[mask_pre_pav_inf_neg].tolist() + llrs[mask_pre_pav_inf_pos].tolist()
 
             plt.yticks(ticks_y, tick_labels_y)
 
