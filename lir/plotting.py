@@ -522,7 +522,7 @@ def plot_score_distribution_and_calibrator_fit(calibrator,
 
     # adjust weights so largest value is 1
     for i, s in enumerate(scores_by_class):
-        hist, _ = np.histogram(s, bins=bins, weights=weights[i])
+        hist, _ = np.histogram(s, bins=np.r_[-np.inf, bins, np.inf], weights=weights[i])
         weights[i] = weights[i] * (1/hist.max())
 
     x = np.arange(min(bins), max(bins) + 0.01, .01)
