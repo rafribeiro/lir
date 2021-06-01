@@ -393,6 +393,7 @@ def plot_pav(lrs, y, add_misleading=0, show_scatter=True, savefig=None, show=Non
                 plot_yrange[1]] * mask_pre_pav_pos_inf.any()
             plt.yticks(ticks_y, tick_labels_y)
 
+        # handle infinite values before pav transformation
         if np.isinf(llrs).any():
             plot_xrange = [plot_xrange[0] - step_size * np.isneginf(llrs).any(),
                            plot_xrange[1] + step_size * np.isposinf(llrs).any()]
