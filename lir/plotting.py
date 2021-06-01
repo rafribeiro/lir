@@ -526,22 +526,69 @@ def plot_tippett(lrs, y, savefig=None, show=None, kw_figure={}):
     plt.close()
 
 
-def plot_score_distribution_and_calibrator_fit(calibrator, scores, y, bins=20, savefig=None, show=None):
+def plot_score_distribution_and_calibrator_fit(calibrator,
+                                               scores,
+                                               y,
+                                               bins=20,
+                                               savefig=None,
+                                               show=None):
     """
-    plots the distributions of scores calculated by the (fitted) lr_system, as well as the fitted score distributions/
-    score-to-posterior map
+    plots the distributions of scores calculated by the (fitted) lr_system,
+    as well as the fitted score distributions/score-to-posterior map
     (Note - for ELUBbounder calibrator is the firststepcalibrator)
 
     TODO: plot multiple calibrators at once
     """
     plt.figure(figsize=(10, 10), dpi=100)
-    x = np.arange(0, 1, .01)
+    plt.rcParams.update({'font.size': 15})
+    bins = np.histogram_bin_edges(scores[np.isfinite(scores)], bins=bins)
+
+    # create weights vector so y-axis is between 0-1
+    scores_by_class = [scores[y == cls] for cls in np.unique(y)]
+    weights = [np.ones_like(data) / len(data) for data in scores_by_class]
+
+    # adjust weights so largest value is 1
+    for i, s in enumerate(scores_by_class):
+        hist, _ = np.histogram(s, bins=np.r_[-np.inf, bins, np.inf], weights=weights[i])
+        weights[i] = weights[i] * (1/hist.max())
+
+    x = np.arange(min(bins), max(bins) + 0.01, .01)
     calibrator.transform(x)
 
-    bins = np.histogram_bin_edges(scores, bins=bins)
-    for cls in np.unique(y):
-        plt.hist(scores[y == cls], bins=bins, alpha=.25, density=True,
-                 label=f'class {cls}')
+    # handle inf values
+    if np.isinf(scores).any():
+        prop_cycle = plt.rcParams['axes.prop_cycle']
+        colors = prop_cycle.by_key()['color']
+        x_range = np.linspace(min(bins), max(bins), 6).tolist()
+        labels = [str(round(tick, 1)) for tick in x_range]
+        step_size = x_range[2] - x_range[1]
+        bar_width = step_size / 4
+        plot_args_inf = []
+
+        if np.isneginf(scores).any():
+            x_range = [x_range[0] - step_size] + x_range
+            labels = ['-∞'] + labels
+            for i, s in enumerate(scores_by_class):
+                if np.isneginf(s).any():
+                    plot_args_inf.append(
+                        (colors[i], x_range[0] + bar_width if i else x_range[0], np.sum(weights[i][np.isneginf(s)])))
+
+        if np.isposinf(scores).any():
+            x_range = x_range + [x_range[-1] + step_size]
+            labels.append('∞')
+            for i, s in enumerate(scores_by_class):
+                if np.isposinf(s).any():
+                    plot_args_inf.append(
+                        (colors[i], x_range[-1] - bar_width if i else x_range[-1], np.sum(weights[i][np.isposinf(s)])))
+
+        plt.xticks(x_range, labels)
+
+        for color, x_coord, y_coord in plot_args_inf:
+            plt.bar(x_coord, y_coord, width=bar_width, color=color, alpha=0.25, hatch='/')
+
+    for cls, weight in zip(np.unique(y), weights):
+        plt.hist(scores[y == cls], bins=bins, alpha=.25,
+                 label=f'class {cls}', weights=weight)
     plt.plot(x, calibrator.p1, label='fit class 1')
     plt.plot(x, calibrator.p0, label='fit class 0')
 
