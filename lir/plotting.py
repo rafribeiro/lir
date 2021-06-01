@@ -394,25 +394,16 @@ def plot_pav(lrs, y, add_misleading=0, show_scatter=True, savefig=None, show=Non
             plt.yticks(ticks_y, tick_labels_y)
 
         if np.isinf(llrs).any():
-            ticks_x = ticks
-            tick_labels_x = tick_labels
-
-            if np.isneginf(llrs).any():
-                plot_xrange = [plot_xrange[0] - step_size, plot_xrange[1]]
-                x_inf += [plot_xrange[0] + margin] * np.sum(llrs == -np.Inf)
-                y_inf += [pav_llr + margin if pav_llr != -np.Inf else plot_yrange[0] + margin for pav_llr in
-                          pav_llrs[llrs == -np.Inf]]
-                ticks_x = [plot_xrange[0]] + ticks_x
-                tick_labels_x = ['-∞'] + [label for label in tick_labels_x]
-
-            if np.isposinf(llrs).any():
-                plot_xrange = [plot_xrange[0], plot_xrange[1] + step_size]
-                x_inf += [plot_xrange[1] - margin] * np.sum(llrs == np.Inf)
-                y_inf += [pav_llr - margin if pav_llr != np.Inf else plot_yrange[1] - margin for pav_llr in
-                          pav_llrs[llrs == np.Inf]]
-                ticks_x.append(plot_xrange[1])
-                tick_labels_x = [label for label in tick_labels_x] + ['+∞']
-
+            plot_xrange = [plot_xrange[0] - step_size * np.isneginf(llrs).any(),
+                           plot_xrange[1] + step_size * np.isposinf(llrs).any()]
+            x_inf += [plot_xrange[0] + margin] * np.sum(np.isneginf(llrs)) + [plot_xrange[1] - margin] * np.sum(
+                np.isposinf(llrs))
+            y_inf += [pav_llr + margin if pav_llr != -np.Inf else plot_yrange[0] + margin for pav_llr in
+                      pav_llrs[np.isneginf(llrs)]] + [pav_llr - margin if pav_llr != np.Inf else plot_yrange[1] - margin
+                                                      for pav_llr in
+                                                      pav_llrs[np.isposinf(llrs)]]
+            ticks_x = [plot_xrange[0]] * np.isneginf(llrs).any() + ticks + [plot_xrange[1]] * np.isposinf(llrs).any()
+            tick_labels_x = ['-∞'] * np.isneginf(llrs).any() + tick_labels + ['+∞'] * np.isposinf(llrs).any()
             plt.xticks(ticks_x, tick_labels_x)
 
         plt.scatter(x_inf,
