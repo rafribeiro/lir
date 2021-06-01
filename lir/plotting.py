@@ -384,20 +384,20 @@ def plot_pav(lrs, y, add_misleading=0, show_scatter=True, savefig=None, show=Non
             ticks_y = ticks
             tick_labels_y = tick_labels
 
-            if (pav_llrs == -np.Inf).any():
+            if np.isneginf(pav_llrs).any():
                 # pre pav -infs are already considered when checking for pre pav llrs below
                 # therefore they need to be masked here
-                mask_pre_pav_neg_inf = np.logical_and(pav_llrs == -np.Inf, llrs != -np.Inf)
+                mask_pre_pav_neg_inf = np.logical_and(np.isneginf(pav_llrs), np.isfinite(llrs))
                 plot_yrange = [plot_yrange[0] - step_size, plot_yrange[1]]
                 y_inf += [plot_yrange[0] + margin] * np.sum(mask_pre_pav_neg_inf)
                 x_inf += llrs[mask_pre_pav_neg_inf].tolist()
                 ticks_y = [plot_yrange[0]] + ticks_y
                 tick_labels_y = ['-∞'] + [label for label in tick_labels_y]
 
-            if (pav_llrs == np.Inf).any():
+            if np.isposinf(pav_llrs).any():
                 # pre pav +infs are already considered when checking for pre pav llrs below
                 # therefore they need to be masked here
-                mask_pre_pav_pos_inf = np.logical_and(pav_llrs == np.Inf, llrs != np.Inf)
+                mask_pre_pav_pos_inf = np.logical_and(np.isposinf(pav_llrs), np.isfinite(llrs))
                 plot_yrange = [plot_yrange[0], plot_yrange[1] + step_size]
                 y_inf += [plot_yrange[1] - margin] * np.sum(mask_pre_pav_pos_inf)
                 x_inf += llrs[mask_pre_pav_pos_inf].tolist()
@@ -410,7 +410,7 @@ def plot_pav(lrs, y, add_misleading=0, show_scatter=True, savefig=None, show=Non
             ticks_x = ticks
             tick_labels_x = tick_labels
 
-            if (llrs == -np.Inf).any():
+            if np.isneginf(llrs).any():
                 plot_xrange = [plot_xrange[0] - step_size, plot_xrange[1]]
                 x_inf += [plot_xrange[0] + margin] * np.sum(llrs == -np.Inf)
                 y_inf += [pav_llr + margin if pav_llr != -np.Inf else plot_yrange[0] + margin for pav_llr in
@@ -418,7 +418,7 @@ def plot_pav(lrs, y, add_misleading=0, show_scatter=True, savefig=None, show=Non
                 ticks_x = [plot_xrange[0]] + ticks_x
                 tick_labels_x = ['-∞'] + [label for label in tick_labels_x]
 
-            if (llrs == np.Inf).any():
+            if np.isposinf(llrs).any():
                 plot_xrange = [plot_xrange[0], plot_xrange[1] + step_size]
                 x_inf += [plot_xrange[1] - margin] * np.sum(llrs == np.Inf)
                 y_inf += [pav_llr - margin if pav_llr != np.Inf else plot_yrange[1] - margin for pav_llr in
