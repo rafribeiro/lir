@@ -57,7 +57,7 @@ class NormalGenerator:
 
         odds = p1 / p0
 
-        return odds / (1+odds), y if prob else odds, y
+        return (odds / (1+odds), y) if prob else (odds, y)
 
     @staticmethod
     def _get_probability(X, mu, sigma):
