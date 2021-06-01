@@ -520,6 +520,11 @@ def plot_score_distribution_and_calibrator_fit(calibrator,
     scores_by_class = [scores[y == cls] for cls in np.unique(y)]
     weights = [np.ones_like(data) / len(data) for data in scores_by_class]
 
+    # adjust weights so largest value is 1
+    for i, s in enumerate(scores_by_class):
+        hist, _ = np.histogram(s, bins=bins, weights=weights[i])
+        weights[i] = weights[i] * (1/hist.max())
+
     x = np.arange(min(bins), max(bins) + 0.01, .01)
     calibrator.transform(x)
 
