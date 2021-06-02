@@ -380,7 +380,7 @@ def plot_pav(lrs, y, add_misleading=0, show_scatter=True, savefig=None, show=Non
         y_inf = []
 
         def adjust_ticks_labels_and_range(neg_inf, pos_inf, plot_range):
-            nonlocal ticks, tick_labels, step_size
+            nonlocal ticks, tick_labels
             plot_range = [plot_range[0] - (step_size * neg_inf.any()),
                           plot_range[1] + (step_size * pos_inf.any())]
             ticks = [plot_range[0]] * neg_inf.any() + ticks + [
@@ -390,7 +390,6 @@ def plot_pav(lrs, y, add_misleading=0, show_scatter=True, savefig=None, show=Non
             return plot_range, ticks, tick_labels
 
         def infs_llrs_to_axis(plot_range, neg_inf, pos_inf):
-            nonlocal margin
             return [plot_range[0] + margin] * np.sum(neg_inf) + [plot_range[1] - margin] * np.sum(
                 pos_inf)
 
