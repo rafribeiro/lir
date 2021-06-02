@@ -368,66 +368,55 @@ def plot_pav(lrs, y, add_misleading=0, show_scatter=True, savefig=None, show=Non
         pav_llrs = np.log10(pav_lrs)
 
     fig = plt.figure(**kw_figure)
-    valid_xrange = plot_xrange = plot_yrange = [llrs[llrs != -np.Inf].min() - .5, llrs[llrs != np.Inf].max() + .5]
+    xrange = yrange = [llrs[llrs != -np.Inf].min() - .5, llrs[llrs != np.Inf].max() + .5]
+
+    # plot line through origin
+    plt.plot(xrange, xrange)
+
+    # line pre pav llrs x and post pav llrs y
+    line_x = np.arange(*xrange, .01)
+    with np.errstate(divide='ignore'):
+        line_y = np.log10(pav.transform(10 ** line_x))
+    plt.plot(line_x, line_y)
 
     # add points for infinite values
     if np.logical_or(np.isinf(pav_llrs), np.isinf(llrs)).any():
-        ticks = np.linspace(valid_xrange[0], valid_xrange[1], 6).tolist()
-        tick_labels = [str(round(tick, 1)) for tick in ticks]
-        step_size = ticks[2] - ticks[1]
-        margin = step_size / 10
-        x_inf = []
-        y_inf = []
 
-        def adjust_ticks_labels_and_range(neg_inf, pos_inf, plot_range):
-            nonlocal ticks, tick_labels
-            plot_range = [plot_range[0] - (step_size * neg_inf.any()),
-                          plot_range[1] + (step_size * pos_inf.any())]
-            ticks = [plot_range[0]] * neg_inf.any() + ticks + [
-                plot_range[1]] * pos_inf.any()
-            tick_labels = ['-∞'] * neg_inf.any() + tick_labels + ['+∞'] * pos_inf.any()
+        def adjust_ticks_labels_and_range(neg_inf, pos_inf, axis_range):
+            ticks = np.linspace(axis_range[0], axis_range[1], 6).tolist()
+            tick_labels = [str(round(tick, 1)) for tick in ticks]
+            step_size = ticks[2] - ticks[1]
 
-            return plot_range, ticks, tick_labels
+            axis_range = [axis_range[0] - (step_size * neg_inf),axis_range[1] + (step_size * pos_inf)]
+            ticks = [axis_range[0]] * neg_inf + ticks + [axis_range[1]] * pos_inf
+            tick_labels = ['-∞'] * neg_inf + tick_labels + ['+∞'] * pos_inf
 
-        def infs_llrs_to_axis(plot_range, neg_inf, pos_inf):
-            return [plot_range[0] + margin] * np.sum(neg_inf) + [plot_range[1] - margin] * np.sum(
-                pos_inf)
+            return axis_range, ticks, tick_labels
 
-        # handle infinite values after PAV transformation, but not before
-        mask_pre_pav_inf_neg = np.logical_and(np.isneginf(pav_llrs), np.isfinite(llrs))
-        mask_pre_pav_inf_pos = np.logical_and(np.isposinf(pav_llrs), np.isfinite(llrs))
-        plot_yrange, ticks_y, tick_labels_y = adjust_ticks_labels_and_range(mask_pre_pav_inf_neg,
-                                                                            mask_pre_pav_inf_pos,
-                                                                            plot_yrange)
-        y_inf += infs_llrs_to_axis(plot_yrange, mask_pre_pav_inf_neg, mask_pre_pav_inf_pos)
-        x_inf += llrs[mask_pre_pav_inf_neg].tolist() + llrs[mask_pre_pav_inf_pos].tolist()
+        def replace_values_out_of_range(values, min_range, max_range):
+            # create margin for point so no overlap with axis line
+            margin = (max_range - min_range) / 60
+            return np.concatenate([np.where(np.isneginf(values), min_range + margin, values),
+                                   np.where(np.isposinf(values), max_range - margin, values)])
+
+        yrange, ticks_y, tick_labels_y = adjust_ticks_labels_and_range(np.isneginf(pav_llrs).any(),
+                                                                       np.isposinf(pav_llrs).any(),
+                                                                       yrange)
+        xrange, ticks_x, tick_labels_x = adjust_ticks_labels_and_range(np.isneginf(llrs).any(),
+                                                                       np.isposinf(llrs).any(),
+                                                                       xrange)
+
+        mask_not_inf = np.logical_or(np.isinf(llrs), np.isinf(pav_llrs))
+        x_inf = replace_values_out_of_range(llrs[mask_not_inf], xrange[0], xrange[1])
+        y_inf = replace_values_out_of_range(pav_llrs[mask_not_inf], yrange[0], yrange[1])
 
         plt.yticks(ticks_y, tick_labels_y)
-
-        # handle infinite values before pav transformation
-        plot_xrange, ticks_x, tick_labels_x = adjust_ticks_labels_and_range(np.isneginf(llrs),
-                                                                            np.isposinf(llrs),
-                                                                            plot_xrange)
-        x_inf += infs_llrs_to_axis(plot_xrange, np.isneginf(llrs), np.isposinf(llrs))
-        y_inf += [pav_llr + margin if pav_llr != -np.Inf else plot_yrange[0] + margin for pav_llr in
-                  pav_llrs[np.isneginf(llrs)]]
-        y_inf += [pav_llr - margin if pav_llr != np.Inf else plot_yrange[1] - margin
-                  for pav_llr in
-                  pav_llrs[np.isposinf(llrs)]]
-
         plt.xticks(ticks_x, tick_labels_x)
 
         plt.scatter(x_inf,
                     y_inf, facecolors='none', edgecolors='#1f77b4', linestyle=':')
 
-    plt.plot(valid_xrange, valid_xrange)
-    line_x = np.arange(*valid_xrange, .01)
-
-    with np.errstate(divide='ignore'):
-        line_y = np.log10(pav.transform(10 ** line_x))
-    plt.plot(line_x, line_y)
-
-    plt.axis(plot_xrange + plot_yrange)
+    plt.axis(xrange + yrange)
     # pre-/post-calibrated lr fit
 
     if show_scatter:
@@ -545,7 +534,7 @@ def plot_score_distribution_and_calibrator_fit(calibrator,
     # adjust weights so largest value is 1
     for i, s in enumerate(scores_by_class):
         hist, _ = np.histogram(s, bins=np.r_[-np.inf, bins, np.inf], weights=weights[i])
-        weights[i] = weights[i] * (1/hist.max())
+        weights[i] = weights[i] * (1 / hist.max())
 
     x = np.arange(min(bins), max(bins) + 0.01, .01)
     calibrator.transform(x)
