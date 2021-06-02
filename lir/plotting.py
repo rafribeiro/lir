@@ -2,6 +2,7 @@ import collections
 import logging
 import math
 import warnings
+from contextlib import contextmanager
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -336,7 +337,7 @@ def makeplot_accuracy(scorer, density_function, X0_train, X1_train, X0_calibrate
     if show or savefig is None:
         plt.show()
 
-
+@contextmanager
 def plot_pav(lrs, y, add_misleading=0, show_scatter=True, savefig=None, show=None, kw_figure={}):
     """
     Generates a plot of pre- versus post-calibrated LRs using Pool Adjacent
@@ -425,12 +426,15 @@ def plot_pav(lrs, y, add_misleading=0, show_scatter=True, savefig=None, show=Non
     plt.xlabel("pre-calibrated 10log(lr)")
     plt.ylabel("post-calibrated 10log(lr)")
 
-    if savefig is not None:
-        plt.savefig(savefig)
-    if show or savefig is None:
-        plt.show()
+    try:
+        yield plt
+    finally:
+        if savefig:
+            plt.savefig(savefig)
+        if show or savefig is None:
+            plt.show()
 
-    plt.close(fig)
+        plt.close(fig)
 
 
 def plot_log_lr_distributions_for_model(lr_system: CalibratedScorer, X, y, kind: str = 'histogram', savefig=None,
