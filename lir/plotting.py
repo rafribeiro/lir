@@ -371,7 +371,7 @@ def plot_pav(lrs, y, add_misleading=0, show_scatter=True, savefig=None, show=Non
     xrange = yrange = [llrs[llrs != -np.Inf].min() - .5, llrs[llrs != np.Inf].max() + .5]
 
     # plot line through origin
-    plt.plot(xrange, xrange)
+    plt.plot(xrange, yrange)
 
     # line pre pav llrs x and post pav llrs y
     line_x = np.arange(*xrange, .01)
