@@ -383,7 +383,7 @@ def plot_pav(lrs, y, add_misleading=0, show_scatter=True, savefig=None, show=Non
     line_x, line_y = line_x[~np.isnan(line_y)], line_y[~np.isnan(line_y)]
 
     # some values of line_y go beyond the yrange which is problematic when there are infinite values
-    mask_out_of_range = np.logical_and(line_y > yrange[0], line_y < yrange[1])
+    mask_out_of_range = np.logical_and(line_y >= yrange[0], line_y <= yrange[1])
     plt.plot(line_x[mask_out_of_range], line_y[mask_out_of_range])
 
     # add points for infinite values
