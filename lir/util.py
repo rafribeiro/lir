@@ -2,7 +2,6 @@ import collections
 
 import numpy as np
 
-
 LR = collections.namedtuple('LR', ['lr', 'p0', 'p1'])
 
 
