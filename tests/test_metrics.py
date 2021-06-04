@@ -163,13 +163,13 @@ class TestDevPAV(unittest.TestCase):
         self.assertAlmostEqual(calcsurface_f(c1, c2), 0.375)
 
         # 7th possibility (situation 2 of 4 in code below, both coordinates are above the identity line, intersection with identity line on left hand side)
-        c1 = c(1,2)
-        c2 = c(2,4)
+        c1 = (1,2)
+        c2 = (2,4)
         self.assertAlmostEqual(calcsurface_f(c1, c2), 1.5)
 
         # 8th possibility (situation 3 of 4 in code below, both coordinates are below the identity line, intersection with identity line on right hand side)
-        c1 = c(-1,-2)
-        c2 = c(0,-0.5)
+        c1 = (-1,-2)
+        c2 = (0,-0.5)
         self.assertAlmostEqual(calcsurface_f(c1, c2), 0.75)
 
 
