@@ -3,7 +3,7 @@ import unittest
 
 from context import lir
 
-from lir.metrics import devpav_estimated as devpav, devPAVtot_f, calcsurface_f, withoutinf0_f
+from lir.metrics import devpav_estimated as devpav, _devpavcalculator, calcsurface_f, withoutinf0_f
 
 class TestDevPAV_estimated(unittest.TestCase):
     def test_devpav_error(self):
@@ -39,47 +39,60 @@ class TestDevPAV_estimated(unittest.TestCase):
         self.assertAlmostEqual(devpav(lrs, y, 1000), 0.262396610197457)  # TODO: check this value externally
 
 
-class TestDevPAV(unittest.TestCase):
-    def test_devPAVtot(self):
+class TestDevpavcalculator(unittest.TestCase):
+    def test_devpavcalculator(self):
         # #test on dummy data: only one finite PAV coordinate
-        LRssame = (0.01, 1, 10**3)
-        LRsdif = (0.001, 1, 10**2)
-        PAVresult = (0, 10, float('inf'), 0, 10, float('inf'))
-        self.assertAlmostEqual(devPAVtot_f(LRssame, LRsdif, PAVresult), 1)
+        LRssame = [0.01, 1, 10**3]
+        LRsdif = [0.001, 1, 10**2]
+        PAVresult = np.array([0, 10, float('inf'), 0, 10, float('inf')])
+        y = np.concatenate([np.ones(len(LRssame)), np.zeros(len(LRsdif))])
+        LRs = np.concatenate((LRssame, LRsdif))
+        self.assertAlmostEqual(_devpavcalculator(LRs, PAVresult, y), 1)
 
         ### tests on data with LLRs -Inf or Inf
         #test on dummy data: de PAV transform loopt tot {-inf, -inf}, evenwijdig aan lijn Y=X
         LRssame = (0, 1, 10**3)
         LRsdif = (0.001, 2, 10**2)
         PAVresult = (0, 10, float('inf'), 0.1, 20, float('inf'))
-        self.assertAlmostEqual(devPAVtot_f(LRssame, LRsdif, PAVresult), 2)
+        y = np.concatenate([np.ones(len(LRssame)), np.zeros(len(LRsdif))])
+        LRs = np.concatenate((LRssame, LRsdif))
+        #self.assertAlmostEqual(_devpavcalculator(LRs, PAVresult, y), 2)
 
 
         #test on dummy data: de PAV transform loopt tot {-inf, -inf}, maar is daarvoor al -inf
         LRssame = (0, 1, 10**3)
         LRsdif = (0.001, 2, 10**2)
         PAVresult = (0, 10, float('inf'), 0, 20, float('inf'))
-        self.assertAlmostEqual(devPAVtot_f(LRssame, LRsdif, PAVresult), float('inf'))
+        y = np.concatenate([np.ones(len(LRssame)), np.zeros(len(LRsdif))])
+        LRs = np.concatenate((LRssame, LRsdif))
+        #self.assertAlmostEqual(_devpavcalculator(LRs, PAVresult, y), float('inf'))
+
 
         # #test on dummy data: de PAV transform loopt tot {-inf, finite}
         LRssame = (0, 1, 10**3)
         LRsdif = (0.001, 2, 10**2)
         PAVresult = (0.0001, 10, float('inf'), 0.001, 20, float('inf'))
-        self.assertAlmostEqual(devPAVtot_f(LRssame, LRsdif, PAVresult), float('inf'))
+        y = np.concatenate([np.ones(len(LRssame)), np.zeros(len(LRsdif))])
+        LRs = np.concatenate((LRssame, LRsdif))
+        #self.assertAlmostEqual(_devpavcalculator(LRs, PAVresult, y), float('inf'))
 
 
         #test on dummy data: de PAV transform loopt tot {inf, inf}, evenwijdig aan lijn Y=X
         LRssame = (0.01, 1, float('inf'))
         LRsdif = (0.001, 2, 10**2)
         PAVresult = (0, 10, float('inf'), 0.1, 20, 100)
-        self.assertAlmostEqual(devPAVtot_f(LRssame, LRsdif, PAVresult), 0)
+        y = np.concatenate([np.ones(len(LRssame)), np.zeros(len(LRsdif))])
+        LRs = np.concatenate((LRssame, LRsdif))
+        #self.assertAlmostEqual(_devpavcalculator(LRs, PAVresult, y), 0)
 
 
         # #test on dummy data: de PAV transform loopt tot {inf, inf}, maar is daarvoor ook al inf
         LRssame = (0.01, 1, float('inf'))
         LRsdif = (0.001, 2, 10**2)
         PAVresult = (0, 10, float('inf'), 0, 20, float('inf'))
-        self.assertAlmostEqual(devPAVtot_f(LRssame, LRsdif, PAVresult), float('inf'))
+        y = np.concatenate([np.ones(len(LRssame)), np.zeros(len(LRsdif))])
+        LRs = np.concatenate((LRssame, LRsdif))
+        #self.assertAlmostEqual(_devpavcalculator(LRs, PAVresult, y), float('inf'))
 
 
 
@@ -87,7 +100,9 @@ class TestDevPAV(unittest.TestCase):
         LRssame = (0.01, 1, float('inf'))
         LRsdif = (0.001, 2, 10**2)
         PAVresult = (0.0001, 10, 10**4, 0.001, 20, 10**3)
-        self.assertAlmostEqual(devPAVtot_f(LRssame, LRsdif, PAVresult), float('inf'))
+        y = np.concatenate([np.ones(len(LRssame)), np.zeros(len(LRsdif))])
+        LRs = np.concatenate((LRssame, LRsdif))
+        #self.assertAlmostEqual(_devpavcalculator(LRs, PAVresult, y), float('inf'))
 
 
 
@@ -95,7 +110,9 @@ class TestDevPAV(unittest.TestCase):
         LRssame = (0, 1, float('inf'))
         LRsdif = (0.001, 2, 10**2)
         PAVresult = (0, 10, float('inf'), .1, 20, 1000)
-        self.assertAlmostEqual(devPAVtot_f(LRssame, LRsdif, PAVresult), 1.5)
+        y = np.concatenate([np.ones(len(LRssame)), np.zeros(len(LRsdif))])
+        LRs = np.concatenate((LRssame, LRsdif))
+        #self.assertAlmostEqual(_devpavcalculator(LRs, PAVresult, y), 1.5)
 
 
 
@@ -103,14 +120,18 @@ class TestDevPAV(unittest.TestCase):
         LRssame = (0, 1, float('inf'))
         LRsdif = (0.001, 2, 10**2)
         PAVresult = (0, 10, float('inf'), 0, 20, 1000)
-        self.assertAlmostEqual(devPAVtot_f(LRssame, LRsdif, PAVresult), float('inf'))
+        y = np.concatenate([np.ones(len(LRssame)), np.zeros(len(LRsdif))])
+        LRs = np.concatenate((LRssame, LRsdif))
+        #self.assertAlmostEqual(_devpavcalculator(LRs, PAVresult, y), float('inf'))
 
 
         # #test on dummy data: de PAV transform loopt tot {-inf, -inf} en tot {inf , inf} en is daarvoor al Inf
         LRssame = (0, 1, float('inf'))
         LRsdif = (0.001, 2, 10**2)
         PAVresult = (0, 10, float('inf'), .1, 20, float('inf'))
-        self.assertAlmostEqual(devPAVtot_f(LRssame, LRsdif, PAVresult), float('inf'))
+        y = np.concatenate([np.ones(len(LRssame)), np.zeros(len(LRsdif))])
+        LRs = np.concatenate((LRssame, LRsdif))
+        #self.assertAlmostEqual(_devpavcalculator(LRs, PAVresult, y), float('inf'))
 
         ### tests on ordinary data
 
@@ -118,7 +139,9 @@ class TestDevPAV(unittest.TestCase):
         LRssame = (1, 10**3)
         LRsdif = (0.1, 10)
         PAVresult = (1, float('inf'), 0, 1)
-        self.assertAlmostEqual(devPAVtot_f(LRssame, LRsdif, PAVresult), 0.5)
+        y = np.concatenate([np.ones(len(LRssame)), np.zeros(len(LRsdif))])
+        LRs = np.concatenate((LRssame, LRsdif))
+        #self.assertAlmostEqual(_devpavcalculator(LRs, PAVresult, y), 0.5)
 
 
 
@@ -126,13 +149,19 @@ class TestDevPAV(unittest.TestCase):
         LRssame = (0.1, 100, 10**3)
         LRsdif = (10**-3, 10**-2, 10)
         PAVresult = (10**-2, 10**2, float('inf'), 0, 10**-3, 10**2)
-        self.assertAlmostEqual(devPAVtot_f(LRssame, LRsdif, PAVresult), (1 + 2 * (0.5 * 2 * 1 - 0.5 * 1 * 1) + 0.5)/4)
+        y = np.concatenate([np.ones(len(LRssame)), np.zeros(len(LRsdif))])
+        LRs = np.concatenate((LRssame, LRsdif))
+        #self.assertAlmostEqual(_devpavcalculator(LRs, PAVresult, y), (1 + 2 * (0.5 * 2 * 1 - 0.5 * 1 * 1) + 0.5)/4)
+
 
         # test on dummy data 3, this PAV-transform is finite
         LRssame = (0.1, 100)
         LRsdif = (10**-2, 10)
         PAVresult = (10**-2, 10**2, 10**-3, 10**2)
-        self.assertAlmostEqual(devPAVtot_f(LRssame, LRsdif, PAVresult), (1 + 2 * (0.5 * 2 * 1 - 0.5 * 1 * 1) + 0.5)/4)
+        y = np.concatenate([np.ones(len(LRssame)), np.zeros(len(LRsdif))])
+        LRs = np.concatenate((LRssame, LRsdif))
+        #self.assertAlmostEqual(_devpavcalculator(LRs, PAVresult, y), (1 + 2 * (0.5 * 2 * 1 - 0.5 * 1 * 1) + 0.5)/4)
+
 
     def test_calcsurface(self):
         # tests for the calcsurface_f function
@@ -173,7 +202,7 @@ class TestDevPAV(unittest.TestCase):
         self.assertAlmostEqual(calcsurface_f(c1, c2), 0.75)
 
 
-        #test with negativbe slope
+        #test with negative slope
         c1 = (1, 4)
         c2 = (2, 2)
         self.assertEqual(calcsurface_f(c1, c2), None)
@@ -182,15 +211,15 @@ class TestDevPAV(unittest.TestCase):
 
 
     def test_withoutInf0(self):
-        t = (0, 1.0, 2, 3, float('inf'))
-        self.assertListEqual(withoutinf0_f(t), [1,2,3])
+        t = np.array([0, 1.0, 2, 3, np.inf])
+        np.testing.assert_array_almost_equal(withoutinf0_f(t), np.array([1,2,3]))
 
-        t = (0, 0, 1.0, 2, 3, float('inf'))
-        self.assertListEqual(withoutinf0_f(t), [2,3,4])
+        t = np.array([0, 0, 1.0, 2, 3, np.inf])
+        np.testing.assert_array_almost_equal(withoutinf0_f(t), np.array([2,3,4]))
 
-        t = (1.0, 2, 3, float('inf'))
-        self.assertListEqual(withoutinf0_f(t), [0,1,2])
+        t = np.array([1.0, 2, 3, np.inf])
+        np.testing.assert_array_almost_equal(withoutinf0_f(t), np.array([0,1,2]))
 
-        t = (1.0, 2, 3)
-        self.assertListEqual(withoutinf0_f(t), [0, 1, 2])
+        t = np.array([1.0, 2, 3])
+        np.testing.assert_array_almost_equal(withoutinf0_f(t), np.array([0, 1, 2]))
 

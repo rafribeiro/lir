@@ -180,18 +180,18 @@ def withoutinf0_f(listin):
     return (selectindices)
 
     # optie Wouter geeft foutmelding:
-    # return np.where(np.logical_and(listin > 0, listin < np.inf))
+    # return np.flatnonzero(np.logical_and(listin > 0, listin < np.inf))
 
 
-def devPAVtot_f(lrs, pav_lrs, y):
+def _devpavcalculator(lrs, pav_lrs, y):
     """
     function that calculates davPAV for a PAVresult for SSLRs and DSLRs  een PAV transformatie de devPAV uitrekent Input: PAVresult = LRs after PAV, SSLLRs en DSLLRs are LRs for which a PAVresult was calculated
 
     """
-    DSLRS, SSLRs = Xy_to_Xn(lrs,y)
+    DSLRs, SSLRs = Xy_to_Xn(lrs,y)
     DSPAVLRs, SSPAVLRs = Xy_to_Xn(pav_lrs, y)
     PAVresult = (SSPAVLRs, DSPAVLRs)
-    Xen = SSLRs + DSLRs
+    Xen = (SSLRs, DSLRs)
 
     # order coordinates based on x's then y's and filtering out identical datapoints
     data = np.unique(np.array([Xen, PAVresult]), axis=1)
@@ -200,7 +200,7 @@ def devPAVtot_f(lrs, pav_lrs, y):
     # pathological cases
     # check if min(Xen) = 0 or max(Xen) = Inf. First min(Xen)
     # eerst van drie: als Xen[0] == 0 en Xen[len(Xen)-1] != Inf
-    if Xen[0] == 0 and Xen[len(Xen) - 1] != float('inf'):
+    if Xen[0] == 0 and Xen[-1] != float('inf'):
         if Yen[0] == 0 and Yen[1] != 0:
             # dan loopt er een lijn in de PAV transform tot {inf, -Inf} evenwijdig aan de lijn y=x
             return (np.absolute(np.log10(Xen[1]) - np.log10(Yen[1])))
@@ -208,7 +208,7 @@ def devPAVtot_f(lrs, pav_lrs, y):
             # dan is Yen[0] finite of Yen[1] gelijk 0 en loopt er ergens een horizontale lijn tot Log(Xen[0]) = -Inf. devPAV wordt oneindig
             return (float('inf'))
         # tweede van drie: als Xen[len(Xen)-1] == Inf en Xen[0] != 0
-    elif Xen[0] != 0 and Xen[len(Xen) - 1] == float('inf'):
+    elif Xen[0] != 0 and Xen[-1] == float('inf'):
         if Yen[len(Yen) - 1] == float('inf') and Yen[len(Yen) - 2] != float('inf'):
             # dan loopt er een lijn in de PAV transform tot {inf, -Inf} evenwijdig aan de lijn y=x
             return (np.absolute(np.log10(Xen[len(Xen) - 2]) - np.log10(Yen[len(Yen) - 2])))
@@ -216,7 +216,7 @@ def devPAVtot_f(lrs, pav_lrs, y):
             # dan is Yen[len(Yen] finite of Yen[len(Yen-2] gelijk inf en loopt er ergens een horizontale lijn tot Log(Xen[len(Xen)]) = Inf. devPAV wordt oneindig
             return (float('inf'))
         # derde van drie: als Xen[0] = 0 en Xen[len(Xen)-1] == Inf
-    elif Xen[0] == 0 and Xen[len(Xen) - 1] == float('inf'):
+    elif Xen[0] == 0 and Xen[-1] == float('inf'):
         if Yen[len(Yen) - 1] == float('inf') and Yen[len(Yen) - 2] != float('inf') and Yen[0] == 0 and Yen[1] != 0:
             # dan zijn de lijnen aan beide uiteinden evenwijdig met de lijn Y=X. Het berekenen van devPAV is het gemiddelde van twee coordinaten
             devPAV = ((np.absolute(np.log10(Xen[len(Xen) - 2]) - np.log10(Yen[len(Yen) - 2]))) + np.absolute(
@@ -247,7 +247,7 @@ def devPAVtot_f(lrs, pav_lrs, y):
             return (abs(Xen - Yen))
         # than calculate devPAV
         else:
-            deltaX = Xen[len(Xen) - 1] - Xen[0]
+            deltaX = Xen[-1] - Xen[0]
             surface = (0)
             # print("deltaX", deltaX)
             for i in range(1, (len(Xen))):
@@ -264,7 +264,7 @@ def devpav(lrs, y):
     """
     cal = IsotonicCalibrator()
     pavlrs = cal.fit_transform(to_probability(lrs), y)
-    return devPAVtot_f(lrs, pavlrs, y)
+    return _devpavcalculator(lrs, pavlrs, y)
 
 
 def calculate_lr_statistics(lr_class0, lr_class1):
