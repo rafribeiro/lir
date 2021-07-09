@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import os
 from setuptools import setup, find_packages
 
@@ -11,7 +9,7 @@ with open("readme.md") as f:
     long_description = f.read()
 setup(
     name="lir",
-    version="0.0.10",
+    version="0.0.11",
     description="scripts for calculating likelihood ratios",
     long_description=long_description,
     long_description_content_type="text/markdown",
