@@ -3,7 +3,7 @@ import unittest
 
 from context import lir
 
-from lir.metrics import devpav_estimated as devpav, _devpavcalculator, calcsurface_f, withoutinf0_f
+from lir.metrics import devpav_estimated as devpav, _devpavcalculator, calcsurface_f
 
 class TestDevPAV_estimated(unittest.TestCase):
     def test_devpav_error(self):
@@ -208,18 +208,3 @@ class TestDevpavcalculator(unittest.TestCase):
         #self.assertEqual(calcsurface_f(c1, c2), None)
         with self.assertRaises(Exception) as context:
             calcsurface_f(c1, c2)
-
-
-    def test_withoutInf0(self):
-        t = np.array([0, 1.0, 2, 3, np.inf])
-        np.testing.assert_array_almost_equal(withoutinf0_f(t), np.array([1,2,3]))
-
-        t = np.array([0, 0, 1.0, 2, 3, np.inf])
-        np.testing.assert_array_almost_equal(withoutinf0_f(t), np.array([2,3,4]))
-
-        t = np.array([1.0, 2, 3, np.inf])
-        np.testing.assert_array_almost_equal(withoutinf0_f(t), np.array([0,1,2]))
-
-        t = np.array([1.0, 2, 3])
-        np.testing.assert_array_almost_equal(withoutinf0_f(t), np.array([0, 1, 2]))
-

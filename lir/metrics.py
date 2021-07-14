@@ -159,10 +159,6 @@ def calcsurface_f(c1, c2):
     return surface
 
 
-
-withoutinf0_f = lambda x : np.flatnonzero(np.logical_and(x > 0, x < np.inf))  # helper function for `_devpavcalculator`
-
-
 def _devpavcalculator(lrs, pav_lrs, y):
     """
     function that calculates davPAV for a PAVresult for SSLRs and DSLRs  een PAV transformatie de devPAV uitrekent
@@ -212,7 +208,7 @@ def _devpavcalculator(lrs, pav_lrs, y):
         # dan is het geen pathological case met rare X-waarden en kan devPAV berekend worden
 
         # filtering out -Inf or 0 Y's
-        wh = withoutinf0_f(Yen)
+        wh = (Yen > 0) & (Yen < np.inf)
         Xen = np.log10(Xen[wh])
         Yen = np.log10(Yen[wh])
         # create an empty list with size (len(Xen))
