@@ -3,29 +3,28 @@ import logging
 import math
 import warnings
 
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 
 from . import lr, CalibratedScorer, Xy_to_Xn
-from .metrics import calculate_lr_statistics
 from .calibration import IsotonicCalibrator
+from .metrics import calculate_lr_statistics
 from .util import Xn_to_Xy
-
 
 LOG = logging.getLogger(__name__)
 
 
 def process_vector(preprocessor, *X):
-    X = [ np.empty(shape=(0,X[0].shape[1])) if x is None else x for x in X ]
+    X = [np.empty(shape=(0, X[0].shape[1])) if x is None else x for x in X]
     X_all = np.concatenate(X)
 
     X_all = preprocessor.fit_transform(X_all)
     cursor = 0
     X_out = []
     for x in X:
-        X_out.append(X_all[cursor:cursor+x.shape[0],:] if x.shape[0] > 0 else None)
+        X_out.append(X_all[cursor:cursor + x.shape[0], :] if x.shape[0] > 0 else None)
         cursor += x.shape[0]
 
     return X_out
@@ -54,7 +53,8 @@ class AbstractCllrEvaluator:
                  train_size=None, calibrate_size=None, test_size=None,
                  class0_train_size=None, class0_calibrate_size=None, class0_test_size=None,
                  class1_train_size=None, class1_calibrate_size=None, class1_test_size=None,
-                 class0_train=None, class1_train=None, class0_calibrate=None, class1_calibrate=None, class0_test=None, class1_test=None,
+                 class0_train=None, class1_train=None, class0_calibrate=None, class1_calibrate=None, class0_test=None,
+                 class1_test=None,
                  distribution_mean_delta=None,
                  train_folds=None, train_reuse=False, repeat=1):
 
@@ -68,13 +68,25 @@ class AbstractCllrEvaluator:
             class0_pool = resolve(X0)
             class1_pool = resolve(X1)
 
-            class0_train, class0_pool = AbstractCllrEvaluator.get_sample(class0_pool, class0_train_size if class0_train_size is not None else train_size, resolve(class0_train))
-            class0_calibrate, class0_pool = AbstractCllrEvaluator.get_sample(class0_pool, class0_calibrate_size if class0_calibrate_size is not None else calibrate_size, resolve(class0_calibrate))
-            class0_test, class0_pool = AbstractCllrEvaluator.get_sample(class0_pool, class0_test_size if class0_test_size is not None else test_size, resolve(class0_test))
+            class0_train, class0_pool = AbstractCllrEvaluator.get_sample(class0_pool,
+                                                                         class0_train_size if class0_train_size is not None else train_size,
+                                                                         resolve(class0_train))
+            class0_calibrate, class0_pool = AbstractCllrEvaluator.get_sample(class0_pool,
+                                                                             class0_calibrate_size if class0_calibrate_size is not None else calibrate_size,
+                                                                             resolve(class0_calibrate))
+            class0_test, class0_pool = AbstractCllrEvaluator.get_sample(class0_pool,
+                                                                        class0_test_size if class0_test_size is not None else test_size,
+                                                                        resolve(class0_test))
 
-            class1_train, class1_pool = AbstractCllrEvaluator.get_sample(class1_pool, class1_train_size if class1_train_size is not None else train_size, resolve(class1_train))
-            class1_calibrate, class1_pool = AbstractCllrEvaluator.get_sample(class1_pool, class1_calibrate_size if class1_calibrate_size is not None else calibrate_size, resolve(class1_calibrate))
-            class1_test, class1_pool = AbstractCllrEvaluator.get_sample(class1_pool, class1_test_size if class1_test_size is not None else test_size, resolve(class1_test))
+            class1_train, class1_pool = AbstractCllrEvaluator.get_sample(class1_pool,
+                                                                         class1_train_size if class1_train_size is not None else train_size,
+                                                                         resolve(class1_train))
+            class1_calibrate, class1_pool = AbstractCllrEvaluator.get_sample(class1_pool,
+                                                                             class1_calibrate_size if class1_calibrate_size is not None else calibrate_size,
+                                                                             resolve(class1_calibrate))
+            class1_test, class1_pool = AbstractCllrEvaluator.get_sample(class1_pool,
+                                                                        class1_test_size if class1_test_size is not None else test_size,
+                                                                        resolve(class1_test))
 
             if class0_train is not None and train_folds is not None:
                 LOG.debug('evaluate cllr kfold')
@@ -85,7 +97,8 @@ class AbstractCllrEvaluator:
                 cllr.append(self.cllr_kfold(train_folds, class0_train, class1_train, class0_test, class1_test))
             elif class0_calibrate is not None:
                 LOG.debug('evaluate cllr')
-                cllr.append(self.cllr(class0_train, class1_train, class0_calibrate, class1_calibrate, class0_test, class1_test))
+                cllr.append(
+                    self.cllr(class0_train, class1_train, class0_calibrate, class1_calibrate, class0_test, class1_test))
             elif class0_train is not None and train_reuse:
                 LOG.debug('evaluate cllr, reuse training set for calibration')
                 cllr.append(self.cllr(class0_train, class1_train, class0_train, class1_train, class0_test, class1_test))
@@ -104,7 +117,7 @@ class NormalCllrEvaluator(AbstractCllrEvaluator):
         self._distribution_mean_delta = None
 
     def _get_probability(X, mu, sigma):
-        return np.exp(-np.power(X - mu, 2) / (2*sigma*sigma)) / math.sqrt(2*math.pi*sigma*sigma)
+        return np.exp(-np.power(X - mu, 2) / (2 * sigma * sigma)) / math.sqrt(2 * math.pi * sigma * sigma)
 
     def _get_lr(self, X):
         # calculate P(E|H0)
@@ -152,8 +165,15 @@ class ScoreBasedCllrEvaluator(AbstractCllrEvaluator):
 
     def cllr(self, class0_train, class1_train, class0_calibrate, class1_calibrate, class0_test, class1_test):
         for p in self._preprocessors:
-            class0_train, class1_train, class0_calibrate, class1_calibrate, class0_test, class1_test = process_vector(p, class0_train, class1_train, class0_calibrate, class1_calibrate, class0_test, class1_test)
-        cllr = lr.scorebased_cllr(self._clf, self._pfunc, class0_train, class1_train, class0_calibrate, class1_calibrate, class0_test, class1_test)
+            class0_train, class1_train, class0_calibrate, class1_calibrate, class0_test, class1_test = process_vector(p,
+                                                                                                                      class0_train,
+                                                                                                                      class1_train,
+                                                                                                                      class0_calibrate,
+                                                                                                                      class1_calibrate,
+                                                                                                                      class0_test,
+                                                                                                                      class1_test)
+        cllr = lr.scorebased_cllr(self._clf, self._pfunc, class0_train, class1_train, class0_calibrate,
+                                  class1_calibrate, class0_test, class1_test)
         return cllr
 
 
@@ -213,11 +233,12 @@ class PlotLlrStd:
 
 
 def makeplot_density(clf, X0_train, X1_train, X0_calibrate, X1_calibrate, calibrators, savefig=None, show=None):
-    warnings.warn('the function `makeplot_density` is no longer maintained; use `plot_score_distribution_and_calibrator_fit` instead')
+    warnings.warn(
+        'the function `makeplot_density` is no longer maintained; use `plot_score_distribution_and_calibrator_fit` instead')
 
     line_colors = ['r', 'g', 'b', 'c', 'm', 'y', 'k', ]
 
-    plt.figure(figsize=(20,20), dpi=100)
+    plt.figure(figsize=(20, 20), dpi=100)
 
     clf.fit(*Xn_to_Xy(X0_train, X1_train))
     points0 = lr.apply_scorer(clf, X0_calibrate)
@@ -245,8 +266,9 @@ def makeplot_density(clf, X0_train, X1_train, X0_calibrate, X1_calibrate, calibr
         plt.show()
 
 
-def makeplot_cllr(xlabel, generators, experiments, savefig=None, show=None, plots=[PlotCllrAvg, PlotCllrStd, PlotCllrCal]):
-    plt.figure(figsize=(20,20), dpi=100)
+def makeplot_cllr(xlabel, generators, experiments, savefig=None, show=None,
+                  plots=[PlotCllrAvg, PlotCllrStd, PlotCllrCal]):
+    plt.figure(figsize=(20, 20), dpi=100)
 
     axs = None
 
@@ -254,12 +276,12 @@ def makeplot_cllr(xlabel, generators, experiments, savefig=None, show=None, plot
 
     for g in generators:
         LOG.debug('makeplot_cllr: {name}'.format(name=g.name))
-        stats = [ g(x=x, **genargs) for x, genargs in experiments ]
+        stats = [g(x=x, **genargs) for x, genargs in experiments]
 
         if axs is None:
             axs = []
             for i, plot in enumerate(plots):
-                ax = plt.subplot(len(plots), 1, i+1)
+                ax = plt.subplot(len(plots), 1, i + 1)
                 plt.ylabel(plot.ylabel())
                 axs.append(ax)
 
@@ -268,9 +290,10 @@ def makeplot_cllr(xlabel, generators, experiments, savefig=None, show=None, plot
         for i in range(len(plots)):
             plot = plots[i]
             ax = axs[i]
-            axplot = ax.plot(xvalues, [ plot.value(d) for d in stats ], 'o--', label=g.name)[0]
+            axplot = ax.plot(xvalues, [plot.value(d) for d in stats], 'o--', label=g.name)[0]
             if plot.std(stats[0]) is not None:
-                ax.plot(xvalues, [ (plot.value(d)-plot.std(d), plot.value(d)+plot.std(d)) for d in stats ], '_', color=axplot.get_color())
+                ax.plot(xvalues, [(plot.value(d) - plot.std(d), plot.value(d) + plot.std(d)) for d in stats], '_',
+                        color=axplot.get_color())
 
     handles, labels = axs[0].get_legend_handles_labels()
     axs[0].legend(handles, labels, loc='lower center', bbox_to_anchor=(.5, 1), ncol=2)
@@ -281,13 +304,14 @@ def makeplot_cllr(xlabel, generators, experiments, savefig=None, show=None, plot
         plt.show()
 
 
-def makeplot_accuracy(scorer, density_function, X0_train, X1_train, X0_calibrate, X1_calibrate, title, labels=('class0', 'class1'), savefig=None, show=None):
+def makeplot_accuracy(scorer, density_function, X0_train, X1_train, X0_calibrate, X1_calibrate, title,
+                      labels=('class0', 'class1'), savefig=None, show=None):
     LOG.debug('makeplot_accuracy')
     stats = lr.scorebased_cllr(scorer, density_function, X0_train, X1_train, X0_calibrate, X1_calibrate)
 
     scale = 2
 
-    plt.figure(figsize=(20,20), dpi=100)
+    plt.figure(figsize=(20, 20), dpi=100)
 
     bins0 = collections.defaultdict(float)
     for v in stats.lr_class0:
@@ -295,7 +319,7 @@ def makeplot_accuracy(scorer, density_function, X0_train, X1_train, X0_calibrate
 
     bins1 = collections.defaultdict(float)
     for v in stats.lr_class1:
-        bins1[int(round(math.log(v, scale)))] += (1 if v > 1 else 1/v) / len(stats.lr_class1)
+        bins1[int(round(math.log(v, scale)))] += (1 if v > 1 else 1 / v) / len(stats.lr_class1)
 
     bins0_x, bins0_y = zip(*sorted(bins0.items()))
     bins1_x, bins1_y = zip(*sorted(bins1.items()))
@@ -318,11 +342,6 @@ def plot_pav(lrs, y, add_misleading=0, show_scatter=True, savefig=None, show=Non
     Generates a plot of pre- versus post-calibrated LRs using Pool Adjacent
     Violators (PAV).
 
-    Note that post-calibrated LRs may be infinite or negative infinite, unless
-    misleading data points are added. Infinite values cannot be plotted. In
-    fact, if there is a perfect separation between the classes, all values are
-    infinite and nothing will be plotted at all.
-
     Parameters
     ----------
     lrs : numpy array of floats
@@ -339,6 +358,7 @@ def plot_pav(lrs, y, add_misleading=0, show_scatter=True, savefig=None, show=Non
         If True, show the plot on screen
     kw_figure : dict
         Keyword arguments that are passed to matplotlib.pyplot.figure()
+    ----------
     """
     pav = IsotonicCalibrator(add_misleading=add_misleading)
     pav_lrs = pav.fit_transform(lrs, y)
@@ -347,23 +367,70 @@ def plot_pav(lrs, y, add_misleading=0, show_scatter=True, savefig=None, show=Non
         llrs = np.log10(lrs)
         pav_llrs = np.log10(pav_lrs)
 
-    xrange = [llrs.min() - .5, llrs.max() + .5]
-
     fig = plt.figure(**kw_figure)
-    plt.axis(xrange + xrange)
-    plt.plot(xrange, xrange)  # rechte lijn door de oorsprong
+    xrange = yrange = [llrs[llrs != -np.Inf].min() - .5, llrs[llrs != np.Inf].max() + .5]
 
+    # plot line through origin
+    plt.plot(xrange, yrange)
+
+    # line pre pav llrs x and post pav llrs y
     line_x = np.arange(*xrange, .01)
     with np.errstate(divide='ignore'):
-        line_y = np.log10(pav.transform(10**line_x))
-    plt.plot(line_x, line_y)  # pre-/post-calibrated lr fit
+        line_y = np.log10(pav.transform(10 ** line_x))
+
+    # filter nan values, happens when values are out of bound (x_values out of training domain for pav)
+    # see: https://scikit-learn.org/stable/modules/generated/sklearn.isotonic.IsotonicRegression.html
+    line_x, line_y = line_x[~np.isnan(line_y)], line_y[~np.isnan(line_y)]
+
+    # some values of line_y go beyond the yrange which is problematic when there are infinite values
+    mask_out_of_range = np.logical_and(line_y >= yrange[0], line_y <= yrange[1])
+    plt.plot(line_x[mask_out_of_range], line_y[mask_out_of_range])
+
+    # add points for infinite values
+    if np.logical_or(np.isinf(pav_llrs), np.isinf(llrs)).any():
+
+        def adjust_ticks_labels_and_range(neg_inf, pos_inf, axis_range):
+            ticks = np.linspace(axis_range[0], axis_range[1], 6).tolist()
+            tick_labels = [str(round(tick, 1)) for tick in ticks]
+            step_size = ticks[2] - ticks[1]
+
+            axis_range = [axis_range[0] - (step_size * neg_inf),axis_range[1] + (step_size * pos_inf)]
+            ticks = [axis_range[0]] * neg_inf + ticks + [axis_range[1]] * pos_inf
+            tick_labels = ['-∞'] * neg_inf + tick_labels + ['+∞'] * pos_inf
+
+            return axis_range, ticks, tick_labels
+
+        def replace_values_out_of_range(values, min_range, max_range):
+            # create margin for point so no overlap with axis line
+            margin = (max_range - min_range) / 60
+            return np.concatenate([np.where(np.isneginf(values), min_range + margin, values),
+                                   np.where(np.isposinf(values), max_range - margin, values)])
+
+        yrange, ticks_y, tick_labels_y = adjust_ticks_labels_and_range(np.isneginf(pav_llrs).any(),
+                                                                       np.isposinf(pav_llrs).any(),
+                                                                       yrange)
+        xrange, ticks_x, tick_labels_x = adjust_ticks_labels_and_range(np.isneginf(llrs).any(),
+                                                                       np.isposinf(llrs).any(),
+                                                                       xrange)
+
+        mask_not_inf = np.logical_or(np.isinf(llrs), np.isinf(pav_llrs))
+        x_inf = replace_values_out_of_range(llrs[mask_not_inf], xrange[0], xrange[1])
+        y_inf = replace_values_out_of_range(pav_llrs[mask_not_inf], yrange[0], yrange[1])
+
+        plt.yticks(ticks_y, tick_labels_y)
+        plt.xticks(ticks_x, tick_labels_x)
+
+        plt.scatter(x_inf,
+                    y_inf, facecolors='none', edgecolors='#1f77b4', linestyle=':')
+
+    plt.axis(xrange + yrange)
+    # pre-/post-calibrated lr fit
 
     if show_scatter:
         plt.scatter(llrs, pav_llrs)  # scatter plot of measured lrs
 
     plt.xlabel("pre-calibrated 10log(lr)")
     plt.ylabel("post-calibrated 10log(lr)")
-    plt.grid(True, linestyle=':')
 
     if savefig is not None:
         plt.savefig(savefig)
@@ -373,7 +440,7 @@ def plot_pav(lrs, y, add_misleading=0, show_scatter=True, savefig=None, show=Non
     plt.close(fig)
 
 
-def plot_log_lr_distributions_for_model(lr_system: CalibratedScorer, X, y, kind: str='histogram', savefig=None,
+def plot_log_lr_distributions_for_model(lr_system: CalibratedScorer, X, y, kind: str = 'histogram', savefig=None,
                                         show=None):
     """
     plots the 10log lrs generated for the two hypotheses by the fitted system when applied to X
@@ -383,11 +450,11 @@ def plot_log_lr_distributions_for_model(lr_system: CalibratedScorer, X, y, kind:
         raise ValueError(f'kind should be in {kinds}, got {kind}')
 
     lrs = lr_system.predict_lr(X)
-    plot_log_lr_distributions(lrs, y, kind=kind, savefig = savefig, show = show)
+    plot_log_lr_distributions(lrs, y, kind=kind, savefig=savefig, show=show)
 
 
 def plot_log_lr_distributions(lrs, y, kind: str = 'histogram',
-                                        savefig=None, show=None, kw_figure={}):
+                              savefig=None, show=None, kw_figure={}):
     """
     plots the 10log lrs
     """
@@ -450,22 +517,69 @@ def plot_tippett(lrs, y, savefig=None, show=None, kw_figure={}):
     plt.close()
 
 
-def plot_score_distribution_and_calibrator_fit(calibrator, scores, y, bins=20, savefig=None, show=None):
+def plot_score_distribution_and_calibrator_fit(calibrator,
+                                               scores,
+                                               y,
+                                               bins=20,
+                                               savefig=None,
+                                               show=None):
     """
-    plots the distributions of scores calculated by the (fitted) lr_system, as well as the fitted score distributions/
-    score-to-posterior map
+    plots the distributions of scores calculated by the (fitted) lr_system,
+    as well as the fitted score distributions/score-to-posterior map
     (Note - for ELUBbounder calibrator is the firststepcalibrator)
 
     TODO: plot multiple calibrators at once
     """
     plt.figure(figsize=(10, 10), dpi=100)
-    x = np.arange(0, 1, .01)
+    plt.rcParams.update({'font.size': 15})
+    bins = np.histogram_bin_edges(scores[np.isfinite(scores)], bins=bins)
+
+    # create weights vector so y-axis is between 0-1
+    scores_by_class = [scores[y == cls] for cls in np.unique(y)]
+    weights = [np.ones_like(data) / len(data) for data in scores_by_class]
+
+    # adjust weights so largest value is 1
+    for i, s in enumerate(scores_by_class):
+        hist, _ = np.histogram(s, bins=np.r_[-np.inf, bins, np.inf], weights=weights[i])
+        weights[i] = weights[i] * (1 / hist.max())
+
+    x = np.arange(min(bins), max(bins) + 0.01, .01)
     calibrator.transform(x)
 
-    bins = np.histogram_bin_edges(scores, bins=bins)
-    for cls in np.unique(y):
-        plt.hist(scores[y == cls], bins=bins, alpha=.25, density=True,
-                 label=f'class {cls}')
+    # handle inf values
+    if np.isinf(scores).any():
+        prop_cycle = plt.rcParams['axes.prop_cycle']
+        colors = prop_cycle.by_key()['color']
+        x_range = np.linspace(min(bins), max(bins), 6).tolist()
+        labels = [str(round(tick, 1)) for tick in x_range]
+        step_size = x_range[2] - x_range[1]
+        bar_width = step_size / 4
+        plot_args_inf = []
+
+        if np.isneginf(scores).any():
+            x_range = [x_range[0] - step_size] + x_range
+            labels = ['-∞'] + labels
+            for i, s in enumerate(scores_by_class):
+                if np.isneginf(s).any():
+                    plot_args_inf.append(
+                        (colors[i], x_range[0] + bar_width if i else x_range[0], np.sum(weights[i][np.isneginf(s)])))
+
+        if np.isposinf(scores).any():
+            x_range = x_range + [x_range[-1] + step_size]
+            labels.append('∞')
+            for i, s in enumerate(scores_by_class):
+                if np.isposinf(s).any():
+                    plot_args_inf.append(
+                        (colors[i], x_range[-1] - bar_width if i else x_range[-1], np.sum(weights[i][np.isposinf(s)])))
+
+        plt.xticks(x_range, labels)
+
+        for color, x_coord, y_coord in plot_args_inf:
+            plt.bar(x_coord, y_coord, width=bar_width, color=color, alpha=0.25, hatch='/')
+
+    for cls, weight in zip(np.unique(y), weights):
+        plt.hist(scores[y == cls], bins=bins, alpha=.25,
+                 label=f'class {cls}', weights=weight)
     plt.plot(x, calibrator.p1, label='fit class 1')
     plt.plot(x, calibrator.p0, label='fit class 0')
 
@@ -485,6 +599,7 @@ class PlottingCalibrator():
     calibrator = lir.plotting.PlottingCalibrator(lir.NormalizedCalibrator(lir.KDECalibrator(bandwidth=.03)), plot_score_distribution_and_calibrator_fit, plot_args={'savefig': 'fig.png'})
     ```
     """
+
     def __init__(self, calibrator, plot_method, plot_args={}):
         self._calibrator = calibrator
         self._plot_method = plot_method
