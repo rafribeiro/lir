@@ -287,13 +287,11 @@ with lir.plotting.show() as ax:
     ax.score_distribution(scores, y)
 
 # calibrator fit
-cal = lir.LogitCalibrator()
-cal.fit(scores, y)
 with lir.plotting.show() as ax:
     ax.calibrator_fit(cal)
 
 # score distribution and calibrator fit
 with lir.plotting.show() as ax:
-    ax.score_distribution(scores, y)
+    ax.score_distribution(prob, y)
     ax.calibrator_fit(cal)
 ```
