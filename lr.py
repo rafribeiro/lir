@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+import csv
 import logging
 
 import lir
@@ -27,7 +28,12 @@ class Data:
         self.lrs, self.y = AlcoholBreathAnalyser(ill_calibrated=True).sample_lrs()
 
     def load_lrs(self, path):
-        raise ValueError('not implemented')
+        with open(path, "r") as f:
+            reader = csv.reader(f)
+            data = np.array([(float(row[0]), int(row[1])) for row in reader if not row[0].startswith("#")])
+
+        self.lrs = data[:,0]
+        self.y = data[:,1]
 
     def plot_isotonic(self):
         with lir.plotting.show() as ax:
@@ -62,7 +68,7 @@ if __name__ == '__main__':
     plotting.add_argument('--plot-tippett', help='generate a Tippett plot', action='store_true')
 
     etl = parser.add_argument_group('data')
-    etl.add_argument('--load-lrs', metavar='FILE', help='read LRs from FILE')
+    etl.add_argument('--load-lrs', metavar='FILE', help='read LRs from a CSV file; first column is the LR value, second column is the label (0 or 1)')
     etl.add_argument('--generate-lrs', metavar='N', type=int, help='draw N LRs from two score distributions')
     etl.add_argument('--breath-lrs', action='store_true', help='use the breath analyser toy data set')
 
