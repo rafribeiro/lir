@@ -176,13 +176,13 @@ def pav(lrs, y, add_misleading=0, show_scatter=True, ax=plt):
         ax.xticks(ticks_x, tick_labels_x)
 
         ax.scatter(x_inf,
-                    y_inf, facecolors='none', edgecolors='#1f77b4', linestyle=':')
+                    y_inf, facecolors='none', edgecolors='#1f77b4', linestyle=':', c=y_inf)
 
     ax.axis(xrange + yrange)
     # pre-/post-calibrated lr fit
 
     if show_scatter:
-        ax.scatter(llrs, pav_llrs)  # scatter plot of measured lrs
+        ax.scatter(llrs, pav_llrs, c=y)  # scatter plot of measured lrs
 
     ax.set_xlabel("pre-calibrated 10log LR")
     ax.set_ylabel("post-calibrated 10log LR")
