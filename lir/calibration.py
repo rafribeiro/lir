@@ -13,7 +13,7 @@ from sklearn.neighbors import KernelDensity
 
 from .bayeserror import elub
 from .regression import IsotonicRegressionInf
-from .util import Xy_to_Xn, to_odds
+from .util import Xy_to_Xn, to_odds, is_monotone
 
 LOG = logging.getLogger(__name__)
 
@@ -388,3 +388,27 @@ class ELUBbounder(BaseEstimator, TransformerMixin):
     @property
     def p1(self):
         return self.first_step_calibrator.p1
+
+
+class MonotonizedCalibrator(sklearn.base.BaseEstimator, sklearn.base.TransformerMixin):
+    def __init__(self, generator):
+        self.calibrator = None
+        self._generator = generator
+
+    def fit(self, X, y):
+        self.calibrator = None
+        for cal in self._generator():
+            cal.fit(X, y)
+            if is_monotone(cal):
+                self.calibrator = cal
+                return self
+
+        raise ValueError("failed to find a monotonic calibrator")
+
+    def transform(self, X):
+        assert self.calibrator, "fit() must be called before transform()"
+        return self.calibrator.transform(X)
+
+    def __getattr__(self, name):
+        assert self.calibrator, f"fit() must be called before {name}"
+        return getattr(self.calibrator, name)
