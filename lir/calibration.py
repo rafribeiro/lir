@@ -181,7 +181,7 @@ class KDECalibrator(BaseEstimator, TransformerMixin, ):
         self.p0 = np.exp(self._kde0.score_samples(X))
         self.p1 = np.exp(self._kde1.score_samples(X))
 
-        with np.errstate(divide='ignore'):
+        with np.errstate(divide='ignore', over='ignore'):
             return self.p1 / self.p0
 
     @staticmethod
