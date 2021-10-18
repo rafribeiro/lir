@@ -94,6 +94,10 @@ def to_log_odds(p):
     np.seterr(divide='warn')
     return (log_odds)
 
+def from_log_odds_to_p(log_odds):
+    p = to_probability(np.float_power(10, log_odds))
+    return(p)
+
 def ln_to_log(ln_data):
     log_data = np.multiply(np.log10(np.exp(1)), ln_data)
     return(log_data)

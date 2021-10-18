@@ -36,12 +36,11 @@ df_H2 = pd.read_csv(pathfile_data_H2, header = [0])
 np_H1 = np.array(df_H1.iloc[1:10, 1])
 np_H2 = np.array(df_H2.iloc[1:10, 1])
 
-print(np_H1)
-print(np_H2)
 
 # convert to LRs probability domain
 np_H1_prob = lir.util.to_probability(np_H1)
 np_H2_prob = lir.util.to_probability(np_H2)
+
 
 # test: making pathological data, adding 0 under H1 and 1 under H2
 # np_H1_prob = np.append(np_H1_prob, np.zeros(1))
@@ -56,12 +55,14 @@ np_H2_prob = lir.util.to_probability(np_H2)
 # np_H2_prob = np.append(np_H2_prob, np.float_power(10, -324)) # dit gaat net niet meer
 
 # concatenate the scores
-scores = np.append(np_H1_prob, np_H2_prob)
-
+scores = np.append(np_H2_prob,np_H1_prob)
+print("scores")
+print(scores)
+exit(0)
 
 
 # generate GTs
-Y_train = np.concatenate((np.ones(len(np_H1_prob)), np.zeros(len(np_H2_prob))))
+Y_train = np.concatenate(( np.zeros(len(np_H2_prob))), np.ones(len(np_H1_prob)))
 
 #for Gaussian and KDE-calibrator fitting: remove negInf, Inf and compensate
 def compensate_and_remove_negInf_Inf(log_odds_X, y):
