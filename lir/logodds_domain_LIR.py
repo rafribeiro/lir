@@ -60,7 +60,7 @@ scores = np.append(np_H1_prob, np_H2_prob)
 # generate GTs
 Y_train = np.concatenate((np.ones(len(np_H1_prob)), np.zeros(len(np_H2_prob))))
 
-#for Gaussian and KDE-calibrator: remove negInf, Inf and compensate
+#for Gaussian and KDE-calibrator fitting: remove negInf, Inf and compensate
 def compensate_and_remove_negInf_Inf(log_odds_X, y):
         el_H1 = np.all(np.array([log_odds_X != np.Inf, y == 1]), axis=0)
         el_H2 = np.all(np.array([log_odds_X != -1 * np.Inf, y == 0]), axis=0)
@@ -72,14 +72,14 @@ def compensate_and_remove_negInf_Inf(log_odds_X, y):
         return log_odds_X, y, numerator, denominator
 
 
-def transform_probs_to_log_odds(X):
+def to_log_odds(X):
     np.seterr(divide='ignore')
     complement = np.add(1, np.multiply(-1, X))
     log_odds = np.add(np.log10(X), np.multiply(-1, np.log10(complement)))
     np.seterr(divide='warn')
     return(log_odds)
 
-
+#for calirbation training on log_odds domain. Check whether negInf under H1 and Inf under H2 occurs and give error if so
 def check_misleading_Inf_negInf(log_odds_X, y):
     # sanity checks
     # give error message if H1's contain zeros and H2's contain ones
@@ -151,7 +151,7 @@ class KDECalibrator(BaseEstimator, TransformerMixin):
         if self.to_log_odds:
 
             #transform to logodds
-            self.X = transform_probs_to_log_odds(X)
+            self.X = to_log_odds(X)
 
             # check if data is sane
             check_misleading_Inf_negInf(self.X,y)
@@ -180,7 +180,7 @@ class KDECalibrator(BaseEstimator, TransformerMixin):
             LLRs_output = np.empty(np.shape(X))
 
             # transform probs to log_odds
-            X = transform_probs_to_log_odds(X)
+            X = to_log_odds(X)
 
             # get inf and neginf
             wh_inf = np.isposinf(X)
@@ -252,7 +252,7 @@ class GaussianCalibrator(BaseEstimator, TransformerMixin):
         if self.to_log_odds:
 
             #transform probs to logodds
-            self.X = transform_probs_to_log_odds(X)
+            self.X = to_log_odds(X)
 
             #check whether training data is sane
             check_misleading_Inf_negInf(self.X,y)
@@ -278,7 +278,7 @@ class GaussianCalibrator(BaseEstimator, TransformerMixin):
             LLRs_output = np.empty(np.shape(X))
 
             # transform probs to log_odds
-            X = transform_probs_to_log_odds(X)
+            X = to_log_odds(X)
 
             # get inf and neginf
             wh_inf = np.isposinf(X)
@@ -332,7 +332,7 @@ class LogitCalibrator(BaseEstimator, TransformerMixin):
     def fit(self, X, y):
         if self.to_log_odds:
             # sanity check
-            X = transform_probs_to_log_odds(X)
+            X = to_log_odds(X)
             check_misleading_Inf_negInf(X, y)
 
             # if data is sane, remove Inf under H1 and minInf under H2 from the data if present (if present, these prevent logistic regression to train while the loss is zero, so they can be safely removed)
@@ -354,7 +354,7 @@ class LogitCalibrator(BaseEstimator, TransformerMixin):
             LLRs_output = np.empty(np.shape(X))
 
             # transform probs to log_odds
-            X = transform_probs_to_log_odds(X)
+            X = to_log_odds(X)
 
             # get boundary log_odds values
             zero_elements = np.where(X == -1 * np.inf)
@@ -412,7 +412,7 @@ class LogitCalibrator(BaseEstimator, TransformerMixin):
 
 
 # transform scores?
-#scores = transform_probs_to_log_odds(scores)
+#scores = to_log_odds(scores)
 # calibrator fitten
 calibrator.fit(scores, Y_train)
 
@@ -422,7 +422,7 @@ calibrator.fit(scores, Y_train)
 lrs_cal_train = calibrator.transform(scores)
 # plot to check
 f = plt.figure()
-plt.plot(transform_probs_to_log_odds(scores), np.log10(lrs_cal_train), 'o', color='black')
+plt.plot(to_log_odds(scores), np.log10(lrs_cal_train), 'o', color='black')
 #plt.plot(scores, np.log10(lrs_cal_train), 'o', color='black')
 x = np.linspace(-10,10,100)
 plt.ylim((-10, 10))
