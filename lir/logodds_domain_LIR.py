@@ -33,8 +33,11 @@ pathfile_data_H2 = pathin + filename_log_LRs_H2
 df_H1 = pd.read_csv(pathfile_data_H1, header = [0])
 df_H2 = pd.read_csv(pathfile_data_H2, header = [0])
 # convert to np.array
-np_H1 = np.array(df_H1.iloc[:, 1])
-np_H2 = np.array(df_H2.iloc[:, 1])
+np_H1 = np.array(df_H1.iloc[1:10, 1])
+np_H2 = np.array(df_H2.iloc[1:10, 1])
+
+print(np_H1)
+print(np_H2)
 
 # convert to LRs probability domain
 np_H1_prob = lir.util.to_probability(np_H1)
@@ -396,7 +399,7 @@ class LogitCalibrator(BaseEstimator, TransformerMixin):
 
 # train part KDE
 # initialize a calibrator
-# calibrator = KDECalibrator()  # use KDE for calibration
+calibrator = KDECalibrator()  # use KDE for calibration
 # calibrator = KDECalibrator(to_log_odds = False)  # use KDE for calibration
 
 # train part Gaussion Mixture model
@@ -420,6 +423,8 @@ calibrator.fit(scores, Y_train)
 
 # test part (on train data)
 lrs_cal_train = calibrator.transform(scores)
+print(lrs_cal_train)
+
 # plot to check
 f = plt.figure()
 plt.plot(to_log_odds(scores), np.log10(lrs_cal_train), 'o', color='black')

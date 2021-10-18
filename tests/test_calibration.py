@@ -5,6 +5,7 @@ import warnings
 from context import lir
 
 from lir.calibration import IsotonicCalibrator
+from lir.calibration import KDECalibrator
 from lir.util import Xn_to_Xy, Xy_to_Xn
 import math
 
@@ -72,5 +73,21 @@ class TestIsotonicRegression(unittest.TestCase):
         np.testing.assert_almost_equal(lr1, np.concatenate([[1.]*(lr1.shape[0]-1), [np.inf]]))
 
 
+class TestKDECalibrator(unittest.TestCase):
+    def test_lr_on_logit(self):
+        score_class0 = [9.10734621e-02, 1.37045394e-06, 7.09420701e-07, 5.71489514e-07, 2.44360004e-02, 5.53264987e-02, 6.40338659e-04, 8.22553310e-09, 2.57792725e-06]
+        score_class1 = [2.42776744e+05, 5.35255527e+03, 1.50355963e+03, 1.08776892e+03, 2.19083530e+01, 7.13508826e+02, 2.23486401e+03, 5.52239060e+03, 1.12077833e+07]
+        X, y = Xn_to_Xy(score_class0, score_class1)
+        outcome = [3.14589737e+03, 2.59568527e+02, 1.08519904e+02, 8.56459139e+01, 3.81243702e+00, 6.23873841e+01, 1.43844114e+02, 2.64913149e+02, 1.49097168e+05, 3.59562799e-02, 1.75942116e-11, 2.59633540e-12, 1.36799721e-12, 8.15673411e-03, 2.10030624e-02, 3.70456430e-05, 1.40710861e-18, 1.04459592e-10]
+        calibrator = KDECalibrator()
+        print(X)
+        calibrator.fit(X, y)
+        lrs_cal = calibrator.transform(X)
+        np.testing.assert_almost_equal(lrs_cal, outcome)
+
+
+
 if __name__ == '__main__':
     unittest.main()
+
+

@@ -163,6 +163,7 @@ class KDECalibrator(BaseEstimator, TransformerMixin):
         raise
 
     def fit(self, X, y):
+        print("in fit")
         if self.to_log_odds:
 
             #transform to logodds
