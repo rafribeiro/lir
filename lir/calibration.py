@@ -163,7 +163,6 @@ class KDECalibrator(BaseEstimator, TransformerMixin):
         raise
 
     def fit(self, X, y):
-        print("in fit")
         if self.to_log_odds:
 
             #transform to logodds
@@ -182,7 +181,6 @@ class KDECalibrator(BaseEstimator, TransformerMixin):
 
         bandwidth0 = self.bandwidth[0] or self.bandwidth_silverman(X0)
         bandwidth1 = self.bandwidth[1] or self.bandwidth_silverman(X1)
-
         self._kde0 = KernelDensity(kernel='gaussian', bandwidth=bandwidth0).fit(X0)
         self._kde1 = KernelDensity(kernel='gaussian', bandwidth=bandwidth1).fit(X1)
         return self
@@ -286,6 +284,8 @@ class LogitCalibrator(BaseEstimator, TransformerMixin):
 
             # initiate LLRs_output
             LLRs_output = np.empty(np.shape(X))
+            self.p0 = np.empty(np.shape(X))
+            self.p1 = np.empty(np.shape(X))
 
             # transform probs to log_odds
             X = to_log_odds(X)
@@ -309,8 +309,10 @@ class LogitCalibrator(BaseEstimator, TransformerMixin):
 
             # calculation of self.p1 and self.p0 is redundant?
             LRs = np.float_power(10, LLRs_output)
-            self.p1 = np.divide(LRs, np.add(1, LRs))
-            self.p0 = np.divide(1, np.add(1, LRs))
+            self.p1[zero_elements] = 0
+            self.p1[ones_elements] = 1
+            self.p1[between_elements] = self._logit.predict_proba(X[between_elements].reshape(-1, 1))[:, 1]
+            self.p0 = 1 - self.p1
             return np.float_power(10, LLRs_output)
         else:
             # calculation of self.p1 and self.p0 is redundant?

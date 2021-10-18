@@ -33,8 +33,8 @@ pathfile_data_H2 = pathin + filename_log_LRs_H2
 df_H1 = pd.read_csv(pathfile_data_H1, header = [0])
 df_H2 = pd.read_csv(pathfile_data_H2, header = [0])
 # convert to np.array
-np_H1 = np.array(df_H1.iloc[1:10, 1])
-np_H2 = np.array(df_H2.iloc[1:10, 1])
+np_H1 = np.array(df_H1.iloc[:, 1])
+np_H2 = np.array(df_H2.iloc[0:5000, 1])
 
 
 # convert to LRs probability domain
@@ -55,14 +55,15 @@ np_H2_prob = lir.util.to_probability(np_H2)
 # np_H2_prob = np.append(np_H2_prob, np.float_power(10, -324)) # dit gaat net niet meer
 
 # concatenate the scores
-scores = np.append(np_H2_prob,np_H1_prob)
-print("scores")
+scores = np.append(np_H2_prob, np_H1_prob)
 print(scores)
-exit(0)
+
 
 
 # generate GTs
-Y_train = np.concatenate(( np.zeros(len(np_H2_prob))), np.ones(len(np_H1_prob)))
+Y_train = np.concatenate((np.zeros(len(np_H2_prob)), np.ones(len(np_H1_prob))))
+print(Y_train)
+
 
 #for Gaussian and KDE-calibrator fitting: remove negInf, Inf and compensate
 def compensate_and_remove_negInf_Inf(log_odds_X, y):
@@ -170,7 +171,6 @@ class KDECalibrator(BaseEstimator, TransformerMixin):
 
         bandwidth0 = self.bandwidth[0] or self.bandwidth_silverman(X0)
         bandwidth1 = self.bandwidth[1] or self.bandwidth_silverman(X1)
-
         self._kde0 = KernelDensity(kernel='gaussian', bandwidth=bandwidth0).fit(X0)
         self._kde1 = KernelDensity(kernel='gaussian', bandwidth=bandwidth1).fit(X1)
         return self
@@ -356,6 +356,8 @@ class LogitCalibrator(BaseEstimator, TransformerMixin):
 
             # initiate LLRs_output
             LLRs_output = np.empty(np.shape(X))
+            self.p0 = np.empty(np.shape(X))
+            self.p1 = np.empty(np.shape(X))
 
             # transform probs to log_odds
             X = to_log_odds(X)
@@ -379,8 +381,10 @@ class LogitCalibrator(BaseEstimator, TransformerMixin):
 
             # calculation of self.p1 and self.p0 is redundant?
             LRs = np.float_power(10, LLRs_output)
-            self.p1 = np.divide(LRs, np.add(1, LRs))
-            self.p0 = np.divide(1, np.add(1, LRs))
+            self.p1[zero_elements] = 0
+            self.p1[ones_elements] = 1
+            self.p1[between_elements] = self._logit.predict_proba(X[between_elements].reshape(-1, 1))[:, 1]
+            self.p0 = 1 - self.p1
             return np.float_power(10, LLRs_output)
         else:
             # calculation of self.p1 and self.p0 is redundant?
@@ -424,6 +428,7 @@ calibrator.fit(scores, Y_train)
 
 # test part (on train data)
 lrs_cal_train = calibrator.transform(scores)
+print("LRs_cal_train")
 print(lrs_cal_train)
 
 # plot to check
