@@ -324,33 +324,26 @@ class KDECalibratorInProbabilityDomain(BaseEstimator, TransformerMixin):
         raise
 
     def fit(self, X, y):
-
         X0, X1 = Xy_to_Xn(X, y)
         X0 = X0.reshape(-1, 1)
         X1 = X1.reshape(-1, 1)
 
         bandwidth0 = self.bandwidth[0] or self.bandwidth_silverman(X0)
         bandwidth1 = self.bandwidth[1] or self.bandwidth_silverman(X1)
+
         self._kde0 = KernelDensity(kernel='gaussian', bandwidth=bandwidth0).fit(X0)
         self._kde1 = KernelDensity(kernel='gaussian', bandwidth=bandwidth1).fit(X1)
         return self
 
     def transform(self, X):
         assert self._kde0 is not None, "KDECalibrator.transform() called before fit"
-        self.p0 = np.empty(np.shape(X))
-        self.p1 = np.empty(np.shape(X))
 
-        # perform KDE as usual
         X = X.reshape(-1, 1)
-        ln_H1 = self._kde1.score_samples(X)
-        ln_H2 = self._kde0.score_samples(X)
-        ln_dif = ln_H1 - ln_H2
-        log10_dif = ln_to_log(ln_dif)
+        self.p0 = np.exp(self._kde0.score_samples(X))
+        self.p1 = np.exp(self._kde1.score_samples(X))
 
-        #calculate p0 and p1
-        self.p0 = np.exp(ln_H2)
-        self.p1 = np.exp(ln_H1)
-        return np.float_power(10, log10_dif)
+        with np.errstate(divide='ignore'):
+            return self.p1 / self.p0
 
     @staticmethod
     def _parse_bandwidth(bandwidth: Optional[Union[float, Tuple[float, float]]]) \
@@ -416,7 +409,7 @@ class LogitCalibrator(BaseEstimator, TransformerMixin):
         between_elements = np.all(np.array([X != np.inf, X != -1 * np.inf]), axis=0)
 
         # get LLRs for X[between_elements]
-        LnLRs = np.add(self._logit.intercept_, np.multiply(self._logit.coef_, X[between_elements]))
+        LnLRs = self._logit.intercept_ + self._logit.coef_ * X[between_elements]
         LLRs = ln_to_log(LnLRs)
         LLRs = np.reshape(LLRs, np.sum(between_elements))
         LLRs_output[between_elements] = LLRs
@@ -538,12 +531,12 @@ class GaussianCalibratorInProbabilityDomain(BaseEstimator, TransformerMixin):
 
     Fits Gaussian on probabilities
     """
+
     def __init__(self, n_components_H0=1, n_components_H1=1):
         self.n_components_H1 = n_components_H1
         self.n_components_H0 = n_components_H0
 
     def fit(self, X, y):
-        # perform Gaussian mixture
         X0, X1 = Xy_to_Xn(X, y)
         X0 = X0.reshape(-1, 1)
         X1 = X1.reshape(-1, 1)
@@ -552,17 +545,10 @@ class GaussianCalibratorInProbabilityDomain(BaseEstimator, TransformerMixin):
         return self
 
     def transform(self, X):
-        self.p0 = np.empty(np.shape(X))
-        self.p1 = np.empty(np.shape(X))
-        #perform density calculations for X
         X = X.reshape(-1, 1)
-        ln_H1 = self._model1.score_samples(X)
-        ln_H2 = self._model0.score_samples(X)
-        ln_dif = ln_H1 - ln_H2
-        log10_dif = ln_to_log(ln_dif)
-        self.p0 = np.exp(ln_H2)
-        self.p1 = np.exp(ln_H1)
-        return np.float_power(10, log10_dif)
+        self.p0 = np.exp(self._model0.score_samples(X))
+        self.p1 = np.exp(self._model1.score_samples(X))
+        return self.p1 / self.p0
 
 
 class IsotonicCalibrator(BaseEstimator, TransformerMixin):

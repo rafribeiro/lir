@@ -63,19 +63,17 @@ def to_odds(p):
 
 
 def to_log_odds(p):
-    np.seterr(divide='ignore')
-    complement = np.add(1, np.multiply(-1, p))
-    log_odds = np.add(np.log10(p), np.multiply(-1, np.log10(complement)))
-    np.seterr(divide='warn')
-    return (log_odds)
+    with np.errstate(divide='ignore'):
+        complement = 1 - p
+        return np.log10(p) - np.log10(complement)
 
-def from_log_odds_to_p(log_odds):
-    p = to_probability(np.float_power(10, log_odds))
-    return(p)
+
+def from_log_odds_to_probability(log_odds):
+    return to_probability(10 ** log_odds)
+
 
 def ln_to_log(ln_data):
-    log_data = np.multiply(np.log10(np.exp(1)), ln_data)
-    return(log_data)
+    return np.log10(np.exp(1)) * ln_data
 
 
 def warn_deprecated():
