@@ -72,8 +72,8 @@ def from_log_odds_to_probability(log_odds):
     return to_probability(10 ** log_odds)
 
 
-def ln_to_log(ln_data):
-    return np.log10(np.exp(1)) * ln_data
+def ln_to_log10(ln_data):
+    return np.log10(np.e) * ln_data
 
 
 def warn_deprecated():

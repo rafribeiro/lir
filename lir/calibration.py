@@ -13,7 +13,7 @@ from sklearn.neighbors import KernelDensity
 
 from .bayeserror import elub
 from .regression import IsotonicRegressionInf
-from .util import Xy_to_Xn, to_odds, to_log_odds, ln_to_log
+from .util import Xy_to_Xn, to_odds, to_log_odds, ln_to_log10
 
 LOG = logging.getLogger(__name__)
 
@@ -245,7 +245,7 @@ class KDECalibrator(BaseEstimator, TransformerMixin):
         ln_H1 = self._kde1.score_samples(X)
         ln_H2 = self._kde0.score_samples(X)
         ln_dif = ln_H1 - ln_H2
-        log10_dif = ln_to_log(ln_dif)
+        log10_dif = ln_to_log10(ln_dif)
 
         #calculate p0 and p1's (redundant?)
         self.p0[el] = self.denominator * np.exp(ln_H2)
@@ -410,7 +410,7 @@ class LogitCalibrator(BaseEstimator, TransformerMixin):
 
         # get LLRs for X[between_elements]
         LnLRs = self._logit.intercept_ + self._logit.coef_ * X[between_elements]
-        LLRs = ln_to_log(LnLRs)
+        LLRs = ln_to_log10(LnLRs)
         LLRs = np.reshape(LLRs, np.sum(between_elements))
         LLRs_output[between_elements] = LLRs
 
@@ -443,7 +443,7 @@ class LogitCalibratorInProbabilityDomain(BaseEstimator, TransformerMixin):
 
         # get LLRs for X
         LnLRs = np.add(self._logit.intercept_, np.multiply(self._logit.coef_, X))
-        LLRs = ln_to_log(LnLRs)
+        LLRs = ln_to_log10(LnLRs)
         LLRs = LLRs.reshape(len(X))
         return np.float_power(10, LLRs)
 
@@ -512,7 +512,7 @@ class GaussianCalibrator(BaseEstimator, TransformerMixin):
         ln_H1 = self._model1.score_samples(X)
         ln_H2 = self._model0.score_samples(X)
         ln_dif = ln_H1 - ln_H2
-        log10_dif = ln_to_log(ln_dif)
+        log10_dif = ln_to_log10(ln_dif)
 
         # calculation of p0 and p1's redundant?
         self.p0[el] = np.multiply(self.denominator, np.exp(ln_H2))

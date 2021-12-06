@@ -77,10 +77,13 @@ class TestIsotonicRegression(unittest.TestCase):
 
 # the X-data for TestKDECalibrator,  TestGaussianCalibrator, TestLogitCalibrator comes from random draws of perfectly calibrated LLR-distributions with mu_s = 6. For larger datasets it is confirmed that the calibration function approaches the line Y = X. The data under H1 and H0 are the 1:10 elements..
 class TestKDECalibrator(unittest.TestCase):
+    score_class0 = [9.10734621e-02, 1.37045394e-06, 7.09420701e-07, 5.71489514e-07, 2.44360004e-02, 5.53264987e-02,
+                    6.40338659e-04, 8.22553310e-09, 2.57792725e-06]
+    score_class1 = [2.42776744e+05, 5.35255527e+03, 1.50355963e+03, 1.08776892e+03, 2.19083530e+01, 7.13508826e+02,
+                    2.23486401e+03, 5.52239060e+03, 1.12077833e+07]
+
     def test_log_odds_version(self):
-        score_class0 = [9.10734621e-02, 1.37045394e-06, 7.09420701e-07, 5.71489514e-07, 2.44360004e-02, 5.53264987e-02, 6.40338659e-04, 8.22553310e-09, 2.57792725e-06]
-        score_class1 = [2.42776744e+05, 5.35255527e+03, 1.50355963e+03, 1.08776892e+03, 2.19083530e+01, 7.13508826e+02, 2.23486401e+03, 5.52239060e+03, 1.12077833e+07]
-        X, y = Xn_to_Xy(score_class0, score_class1)
+        X, y = Xn_to_Xy(self.score_class0, self.score_class1)
         X = to_probability(X)
         desired = [3.59562799e-02, 1.75942116e-11, 2.59633540e-12, 1.36799721e-12, 8.15673411e-03, 2.10030624e-02, 3.70456430e-05, 1.40710861e-18, 1.04459592e-10, 3.14589737e+03, 2.59568527e+02, 1.08519904e+02, 8.56459139e+01, 3.81243702e+00, 6.23873841e+01, 1.43844114e+02, 2.64913149e+02, 1.49097168e+05]
         calibrator = KDECalibrator()
@@ -89,9 +92,7 @@ class TestKDECalibrator(unittest.TestCase):
         np.testing.assert_allclose(lrs_cal, desired)
 
     def test_prob_version(self):
-        score_class0 = [9.10734621e-02, 1.37045394e-06, 7.09420701e-07, 5.71489514e-07, 2.44360004e-02, 5.53264987e-02, 6.40338659e-04, 8.22553310e-09, 2.57792725e-06]
-        score_class1 = [2.42776744e+05, 5.35255527e+03, 1.50355963e+03, 1.08776892e+03, 2.19083530e+01, 7.13508826e+02, 2.23486401e+03, 5.52239060e+03, 1.12077833e+07]
-        X, y = Xn_to_Xy(score_class0, score_class1)
+        X, y = Xn_to_Xy(self.score_class0, self.score_class1)
         X = to_probability(X)
         X = to_log_odds(X)
         # desired is same as directly above
@@ -112,10 +113,13 @@ class TestKDECalibrator(unittest.TestCase):
 
 
 class TestGaussianCalibrator(unittest.TestCase):
+    score_class0 = [9.10734621e-02, 1.37045394e-06, 7.09420701e-07, 5.71489514e-07, 2.44360004e-02, 5.53264987e-02,
+                    6.40338659e-04, 8.22553310e-09, 2.57792725e-06]
+    score_class1 = [2.42776744e+05, 5.35255527e+03, 1.50355963e+03, 1.08776892e+03, 2.19083530e+01, 7.13508826e+02,
+                    2.23486401e+03, 5.52239060e+03, 1.12077833e+07]
+
     def test_log_odds_version(self):
-        score_class0 = [9.10734621e-02, 1.37045394e-06, 7.09420701e-07, 5.71489514e-07, 2.44360004e-02, 5.53264987e-02, 6.40338659e-04, 8.22553310e-09, 2.57792725e-06]
-        score_class1 = [2.42776744e+05, 5.35255527e+03, 1.50355963e+03, 1.08776892e+03, 2.19083530e+01, 7.13508826e+02, 2.23486401e+03, 5.52239060e+03, 1.12077833e+07]
-        X, y = Xn_to_Xy(score_class0, score_class1)
+        X, y = Xn_to_Xy(self.score_class0, self.score_class1)
         X = to_probability(X)
         desired = [3.06533372e-02, 5.92376598e-09, 1.96126088e-09, 1.35801711e-09, 6.71884519e-03, 1.74203890e-02, 6.47951643e-05, 6.33299969e-13, 1.67740156e-08, 2.38575352e+03, 3.62962152e+02, 1.65709775e+02, 1.33992382e+02, 6.90693424e+00, 1.00822553e+02, 2.13452386e+02, 3.69664971e+02, 7.74656845e+03]
         calibrator = GaussianCalibrator()
@@ -124,9 +128,7 @@ class TestGaussianCalibrator(unittest.TestCase):
         np.testing.assert_allclose(lrs_cal, desired)
 
     def test_prob_version(self):
-        score_class0 = [9.10734621e-02, 1.37045394e-06, 7.09420701e-07, 5.71489514e-07, 2.44360004e-02, 5.53264987e-02, 6.40338659e-04, 8.22553310e-09, 2.57792725e-06]
-        score_class1 = [2.42776744e+05, 5.35255527e+03, 1.50355963e+03, 1.08776892e+03, 2.19083530e+01, 7.13508826e+02, 2.23486401e+03, 5.52239060e+03, 1.12077833e+07]
-        X, y = Xn_to_Xy(score_class0, score_class1)
+        X, y = Xn_to_Xy(self.score_class0, self.score_class1)
         X = to_probability(X)
         X = to_log_odds(X)
         #desired is same as directly above
@@ -147,10 +149,13 @@ class TestGaussianCalibrator(unittest.TestCase):
 
 
 class TestLogitCalibrator(unittest.TestCase):
+    score_class0 = [9.10734621e-02, 1.37045394e-06, 7.09420701e-07, 5.71489514e-07, 2.44360004e-02, 5.53264987e-02,
+                    6.40338659e-04, 8.22553310e-09, 2.57792725e-06]
+    score_class1 = [2.42776744e+05, 5.35255527e+03, 1.50355963e+03, 1.08776892e+03, 2.19083530e+01, 7.13508826e+02,
+                    2.23486401e+03, 5.52239060e+03, 1.12077833e+07]
+
     def test_log_odds_version(self):
-        score_class0 = [9.10734621e-02, 1.37045394e-06, 7.09420701e-07, 5.71489514e-07, 2.44360004e-02, 5.53264987e-02, 6.40338659e-04, 8.22553310e-09, 2.57792725e-06]
-        score_class1 = [2.42776744e+05, 5.35255527e+03, 1.50355963e+03, 1.08776892e+03, 2.19083530e+01, 7.13508826e+02, 2.23486401e+03, 5.52239060e+03, 1.12077833e+07]
-        X, y = Xn_to_Xy(score_class0, score_class1)
+        X, y = Xn_to_Xy(self.score_class0, self.score_class1)
         X = to_probability(X)
         desired = [1.79732352e-01, 4.16251897e-04, 2.90464504e-04, 2.58097514e-04, 8.75801433e-02, 1.36880766e-01, 1.19709662e-02, 2.54277585e-05, 5.87902757e-04, 5.83462439e+02, 7.25669320e+01, 3.62580218e+01, 3.03795948e+01, 3.59619089e+00, 2.41271821e+01, 4.50261471e+01, 7.38162334e+01, 4.73670703e+03]
         calibrator = LogitCalibrator()
@@ -159,9 +164,7 @@ class TestLogitCalibrator(unittest.TestCase):
         np.testing.assert_allclose(lrs_cal, desired)
 
     def test_prob_version(self):
-        score_class0 = [9.10734621e-02, 1.37045394e-06, 7.09420701e-07, 5.71489514e-07, 2.44360004e-02, 5.53264987e-02, 6.40338659e-04, 8.22553310e-09, 2.57792725e-06]
-        score_class1 = [2.42776744e+05, 5.35255527e+03, 1.50355963e+03, 1.08776892e+03, 2.19083530e+01, 7.13508826e+02, 2.23486401e+03, 5.52239060e+03, 1.12077833e+07]
-        X, y = Xn_to_Xy(score_class0, score_class1)
+        X, y = Xn_to_Xy(self.score_class0, self.score_class1)
         X = to_probability(X)
         X = to_log_odds(X)
         # desired is same as directly above
