@@ -6,31 +6,6 @@ import numpy as np
 
 LR = collections.namedtuple('LR', ['lr', 'p0', 'p1'])
 
-#for Gaussian and KDE-calibrator fitting: remove negInf, Inf and compensate
-def compensate_and_remove_negInf_Inf(log_odds_X, y):
-        el_H1 = np.all(np.array([log_odds_X != np.Inf, y == 1]), axis=0)
-        el_H2 = np.all(np.array([log_odds_X != -1 * np.Inf, y == 0]), axis=0)
-        n_H1 = np.sum(y)
-        numerator = np.sum(el_H1)/n_H1
-        denominator = np.sum(el_H2)/(len(y)-n_H1)
-        y = y[np.any(np.array([el_H1, el_H2]), axis=0)]
-        log_odds_X = log_odds_X[np.any(np.array([el_H1, el_H2]), axis=0)]
-        return log_odds_X, y, numerator, denominator
-
-
-#for calirbation training on log_odds domain. Check whether negInf under H1 and Inf under H2 occurs and give error if so
-def check_misleading_Inf_negInf(log_odds_X, y):
-    # sanity checks
-    # give error message if H1's contain zeros and H2's contain ones
-    if np.any(np.isneginf(log_odds_X[y == 1])) and np.any(np.isposinf(log_odds_X[y == 0])):
-        raise ValueError('Your data is possibly problematic for this calibrator. You have negInf under H1 and Inf under H2 after logodds transform. If you really want to proceed, adjust probs in order to get finite values on the logodds domain')
-    # give error message if H1's contain zeros
-    if np.any(np.isneginf(log_odds_X[y == 1])):
-        raise ValueError('Your data is possibly problematic for this calibrator. You have negInf under H1 after logodds transform. If you really want to proceed, adjust probs in order to get finite values on the logodds domain')
-    # give error message if H2's contain ones
-    if np.any(np.isposinf(log_odds_X[y == 0])):
-        raise ValueError('Your data is possibly problematic for this calibrator. You have Inf under H2 after logodds transform. If you really want to proceed, adjust probs in order to get finite values on the logodds domain')
-
 
 def get_classes_from_Xy(X, y, classes=None):
     assert len(X.shape) >= 1, f'expected: X has at least 1 dimensions; found: {len(X.shape)} dimensions'

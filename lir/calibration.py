@@ -13,9 +13,40 @@ from sklearn.neighbors import KernelDensity
 
 from .bayeserror import elub
 from .regression import IsotonicRegressionInf
-from .util import Xy_to_Xn, to_odds, to_log_odds, ln_to_log, compensate_and_remove_negInf_Inf, check_misleading_Inf_negInf
+from .util import Xy_to_Xn, to_odds, to_log_odds, ln_to_log
 
 LOG = logging.getLogger(__name__)
+
+
+def check_misleading_Inf_negInf(log_odds_X, y):
+    """
+    for calibration training on log_odds domain. Check whether negInf under H1 and Inf under H2 occurs and give error if so.
+    """
+
+    # give error message if H1's contain zeros and H2's contain ones
+    if np.any(np.isneginf(log_odds_X[y == 1])) and np.any(np.isposinf(log_odds_X[y == 0])):
+        raise ValueError('Your data is possibly problematic for this calibrator. You have negInf under H1 and Inf under H2 after logodds transform. If you really want to proceed, adjust probs in order to get finite values on the logodds domain')
+    # give error message if H1's contain zeros
+    if np.any(np.isneginf(log_odds_X[y == 1])):
+        raise ValueError('Your data is possibly problematic for this calibrator. You have negInf under H1 after logodds transform. If you really want to proceed, adjust probs in order to get finite values on the logodds domain')
+    # give error message if H2's contain ones
+    if np.any(np.isposinf(log_odds_X[y == 0])):
+        raise ValueError('Your data is possibly problematic for this calibrator. You have Inf under H2 after logodds transform. If you really want to proceed, adjust probs in order to get finite values on the logodds domain')
+
+
+def compensate_and_remove_negInf_Inf(log_odds_X, y):
+    """
+    for Gaussian and KDE-calibrator fitting: remove negInf, Inf and compensate
+    """
+    X_finite = np.isfinite(log_odds_X)
+    el_H1 = np.logical_and(X_finite, y == 1)
+    el_H2 = np.logical_and(X_finite, y == 0)
+    n_H1 = np.sum(y)
+    numerator = np.sum(el_H1)/n_H1
+    denominator = np.sum(el_H2)/(len(y)-n_H1)
+    y = y[X_finite]
+    log_odds_X = log_odds_X[X_finite]
+    return log_odds_X, y, numerator, denominator
 
 
 class NormalizedCalibrator(BaseEstimator, TransformerMixin):
@@ -120,7 +151,7 @@ class KDECalibrator(BaseEstimator, TransformerMixin):
     two distributions. Uses kernel density estimation (KDE) for interpolation.
     """
 
-    def __init__(self, bandwidth: Optional[Union[float, Tuple[Optional[float], Optional[float]]]] = None, to_log_odds=True):
+    def __init__(self, bandwidth: Optional[Union[float, Tuple[Optional[float], Optional[float]]]] = None):
         """
 
         :param bandwidth:
@@ -132,11 +163,11 @@ class KDECalibrator(BaseEstimator, TransformerMixin):
             of the first distribution (kde0) and the second entry for the second
             distribution (if value is None: Silverman's rule of thumb is used)
         """
-        self.bandwidth: Tuple[Optional[float], Optional[float]] = \
-            self._parse_bandwidth(bandwidth)
+        self.bandwidth: Tuple[Optional[float], Optional[float]] = self._parse_bandwidth(bandwidth)
         self._kde0: Optional[KernelDensity] = None
         self._kde1: Optional[KernelDensity] = None
-        self.to_log_odds = to_log_odds
+        self.numerator, self.denominator = None, None
+
     @staticmethod
     def bandwidth_silverman(X):
         """
@@ -163,18 +194,16 @@ class KDECalibrator(BaseEstimator, TransformerMixin):
         raise
 
     def fit(self, X, y):
-        if self.to_log_odds:
+        #transform to logodds
+        X = to_log_odds(X)
 
-            #transform to logodds
-            self.X = to_log_odds(X)
+        # check if data is sane
+        check_misleading_Inf_negInf(X, y)
 
-            # check if data is sane
-            check_misleading_Inf_negInf(self.X,y)
-
-            # KDE needs finite scale. Inf and negInf are treated as point masses at the extremes.
-            # Remove them from data for KDE and calculate fraction data that is left.
-            # LRs in finite range will be corrected for fractions in transform function
-            X, y, self.numerator, self.denominator = compensate_and_remove_negInf_Inf(self.X,y)
+        # KDE needs finite scale. Inf and negInf are treated as point masses at the extremes.
+        # Remove them from data for KDE and calculate fraction data that is left.
+        # LRs in finite range will be corrected for fractions in transform function
+        X, y, self.numerator, self.denominator = compensate_and_remove_negInf_Inf(X, y)
         X0, X1 = Xy_to_Xn(X, y)
         X0 = X0.reshape(-1, 1)
         X1 = X1.reshape(-1, 1)
@@ -189,49 +218,139 @@ class KDECalibrator(BaseEstimator, TransformerMixin):
         assert self._kde0 is not None, "KDECalibrator.transform() called before fit"
         self.p0 = np.empty(np.shape(X))
         self.p1 = np.empty(np.shape(X))
-        if self.to_log_odds:
-            # initiate LRs_output
-            LLRs_output = np.empty(np.shape(X))
+        # initiate LRs_output
+        LLRs_output = np.empty(np.shape(X))
 
-            # transform probs to log_odds
-            X = to_log_odds(X)
+        # transform probs to log_odds
+        X = to_log_odds(X)
 
-            # get inf and neginf
-            wh_inf = np.isposinf(X)
-            wh_neginf = np.isneginf(X)
+        # get inf and neginf
+        wh_inf = np.isposinf(X)
+        wh_neginf = np.isneginf(X)
 
-            # assign hard values for extremes
-            LLRs_output[wh_inf] = np.inf
-            LLRs_output[wh_neginf] = -1 * np.inf
-            self.p0[wh_inf] = 0
-            self.p1[wh_inf] = 1
-            self.p0[wh_neginf] = 1
-            self.p1[wh_neginf] = 0
+        # assign hard values for extremes
+        LLRs_output[wh_inf] = np.inf
+        LLRs_output[wh_neginf] = -np.inf
+        self.p0[wh_inf] = 0
+        self.p1[wh_inf] = 1
+        self.p0[wh_neginf] = 1
+        self.p1[wh_neginf] = 0
 
-            # get elements that are not inf or neginf
-            el = np.all(np.array([np.isposinf(X) == False, np.isneginf(X) == False]), axis=0)
-            X = X[el]
+        # get elements that are not inf or neginf
+        el = np.isfinite(X)
+        X = X[el]
 
         # perform KDE as usual
         X = X.reshape(-1, 1)
         ln_H1 = self._kde1.score_samples(X)
         ln_H2 = self._kde0.score_samples(X)
-        ln_dif = np.add(ln_H1, np.multiply(-1, ln_H2))
+        ln_dif = ln_H1 - ln_H2
         log10_dif = ln_to_log(ln_dif)
 
         #calculate p0 and p1's (redundant?)
-        if self.to_log_odds:
-            self.p0[el] = np.multiply(self.denominator, np.exp(ln_H2))
-            self.p1[el] = np.multiply(self.numerator, np.exp(ln_H1))
+        self.p0[el] = self.denominator * np.exp(ln_H2)
+        self.p1[el] = self.numerator * np.exp(ln_H1)
 
-            # apply correction for fraction of negInf and Inf data
-            log10_compensator = np.add(np.log10(self.numerator), np.multiply(-1, np.log(self.denominator)))
-            LLRs_output[el] = np.add(log10_compensator, log10_dif)
-            return np.float_power(10, LLRs_output)
+        # apply correction for fraction of negInf and Inf data
+        log10_compensator = np.log10(self.numerator / self.denominator)
+        LLRs_output[el] = log10_compensator + log10_dif
+        return np.float_power(10, LLRs_output)
+
+    @staticmethod
+    def _parse_bandwidth(bandwidth: Optional[Union[float, Tuple[float, float]]]) \
+            -> Tuple[Optional[float], Optional[float]]:
+        """
+        Returns bandwidth as a tuple of two (optional) floats.
+        Extrapolates a single bandwidth
+        :param bandwidth: provided bandwidth
+        :return: bandwidth used for kde0, bandwidth used for kde1
+        """
+        if bandwidth is None:
+            return None, None
+        elif isinstance(bandwidth, float):
+            return bandwidth, bandwidth
+        elif len(bandwidth) == 2:
+            return bandwidth
         else:
-            self.p0 = np.exp(ln_H2)
-            self.p1 = np.exp(ln_H1)
-            return np.float_power(10, log10_dif)
+            raise ValueError('Invalid input for bandwidth')
+
+
+class KDECalibratorInProbabilityDomain(BaseEstimator, TransformerMixin):
+    """
+    Calculates a likelihood ratio of a score value, provided it is from one of
+    two distributions. Uses kernel density estimation (KDE) for interpolation.
+    """
+
+    def __init__(self, bandwidth: Optional[Union[float, Tuple[Optional[float], Optional[float]]]] = None):
+        """
+
+        :param bandwidth:
+            * If None is provided the Silverman's rule of thumb is
+            used to calculate the bandwidth for both distributions (independently)
+            * If a single float is provided this is used as the bandwith for both
+            distributions
+            * If a tuple is provided, the first entry is used for the bandwidth
+            of the first distribution (kde0) and the second entry for the second
+            distribution (if value is None: Silverman's rule of thumb is used)
+        """
+        self.bandwidth: Tuple[Optional[float], Optional[float]] = \
+            self._parse_bandwidth(bandwidth)
+        self._kde0: Optional[KernelDensity] = None
+        self._kde1: Optional[KernelDensity] = None
+
+    @staticmethod
+    def bandwidth_silverman(X):
+        """
+        Estimates the optimal bandwidth parameter using Silverman's rule of
+        thumb.
+        """
+        assert len(X) > 0
+
+        std = np.std(X)
+        if std == 0:
+            # can happen eg if std(X) = 0
+            warnings.warn('silverman bandwidth cannot be calculated if standard deviation is 0', RuntimeWarning)
+            LOG.info('found a silverman bandwidth of 0 (using dummy value)')
+            std = 1
+
+        v = math.pow(std, 5) / len(X) * 4. / 3
+        return math.pow(v, .2)
+
+    @staticmethod
+    def bandwidth_scott(X):
+        """
+        Not implemented.
+        """
+        raise
+
+    def fit(self, X, y):
+
+        X0, X1 = Xy_to_Xn(X, y)
+        X0 = X0.reshape(-1, 1)
+        X1 = X1.reshape(-1, 1)
+
+        bandwidth0 = self.bandwidth[0] or self.bandwidth_silverman(X0)
+        bandwidth1 = self.bandwidth[1] or self.bandwidth_silverman(X1)
+        self._kde0 = KernelDensity(kernel='gaussian', bandwidth=bandwidth0).fit(X0)
+        self._kde1 = KernelDensity(kernel='gaussian', bandwidth=bandwidth1).fit(X1)
+        return self
+
+    def transform(self, X):
+        assert self._kde0 is not None, "KDECalibrator.transform() called before fit"
+        self.p0 = np.empty(np.shape(X))
+        self.p1 = np.empty(np.shape(X))
+
+        # perform KDE as usual
+        X = X.reshape(-1, 1)
+        ln_H1 = self._kde1.score_samples(X)
+        ln_H2 = self._kde0.score_samples(X)
+        ln_dif = ln_H1 - ln_H2
+        log10_dif = ln_to_log(ln_dif)
+
+        #calculate p0 and p1
+        self.p0 = np.exp(ln_H2)
+        self.p1 = np.exp(ln_H1)
+        return np.float_power(10, log10_dif)
 
     @staticmethod
     def _parse_bandwidth(bandwidth: Optional[Union[float, Tuple[float, float]]]) \
@@ -258,20 +377,16 @@ class LogitCalibrator(BaseEstimator, TransformerMixin):
     two distributions. Uses logistic regression for interpolation.
     """
 
-    def __init__(self, to_log_odds=True):
-        self.to_log_odds = to_log_odds
-
     def fit(self, X, y):
-        if self.to_log_odds:
-            # sanity check
-            X = to_log_odds(X)
-            check_misleading_Inf_negInf(X, y)
 
-            # if data is sane, remove Inf under H1 and minInf under H2 from the data if present (if present, these prevent logistic regression to train while the loss is zero, so they can be safely removed)
-            el_H1 = np.all(np.array([np.isposinf(X) == False, y == 1]), axis=0)
-            el_H2 = np.all(np.array([np.isneginf(X) == False, y == 0]), axis=0)
-            y = y[np.any(np.array([el_H1, el_H2]), axis=0)]
-            X = X[np.any(np.array([el_H1, el_H2]), axis=0)]
+        # sanity check
+        X = to_log_odds(X)
+        check_misleading_Inf_negInf(X, y)
+
+        # if data is sane, remove Inf under H1 and minInf under H2 from the data if present (if present, these prevent logistic regression to train while the loss is zero, so they can be safely removed)
+        el = np.isfinite(X)
+        y = y[el]
+        X = X[el]
 
         # train logistic regression
         X = X.reshape(-1, 1)
@@ -280,76 +395,90 @@ class LogitCalibrator(BaseEstimator, TransformerMixin):
         return self
 
     def transform(self, X):
-        if self.to_log_odds:
 
-            # initiate LLRs_output
-            LLRs_output = np.empty(np.shape(X))
-            self.p0 = np.empty(np.shape(X))
-            self.p1 = np.empty(np.shape(X))
+        # initiate LLRs_output
+        LLRs_output = np.empty(np.shape(X))
+        self.p0 = np.empty(np.shape(X))
+        self.p1 = np.empty(np.shape(X))
 
-            # transform probs to log_odds
-            X = to_log_odds(X)
+        # transform probs to log_odds
+        X = to_log_odds(X)
 
-            # get boundary log_odds values
-            zero_elements = np.where(X == -1 * np.inf)
-            ones_elements = np.where(X == np.inf)
+        # get boundary log_odds values
+        zero_elements = np.where(X == -1 * np.inf)
+        ones_elements = np.where(X == np.inf)
 
-            # assign desired output for these boundary values to LLRs_output
-            LLRs_output[zero_elements] = np.multiply(-1, np.inf)
-            LLRs_output[ones_elements] = np.inf
+        # assign desired output for these boundary values to LLRs_output
+        LLRs_output[zero_elements] = np.multiply(-1, np.inf)
+        LLRs_output[ones_elements] = np.inf
 
-            # get elements with values between negInf and Inf (the boundary values)
-            between_elements = np.all(np.array([X != np.inf, X != -1 * np.inf]), axis=0)
+        # get elements with values between negInf and Inf (the boundary values)
+        between_elements = np.all(np.array([X != np.inf, X != -1 * np.inf]), axis=0)
 
-            # get LLRs for X[between_elements]
-            LnLRs = np.add(self._logit.intercept_, np.multiply(self._logit.coef_, X[between_elements]))
-            LLRs = ln_to_log(LnLRs)
-            LLRs = np.reshape(LLRs, np.sum(between_elements))
-            LLRs_output[between_elements] = LLRs
+        # get LLRs for X[between_elements]
+        LnLRs = np.add(self._logit.intercept_, np.multiply(self._logit.coef_, X[between_elements]))
+        LLRs = ln_to_log(LnLRs)
+        LLRs = np.reshape(LLRs, np.sum(between_elements))
+        LLRs_output[between_elements] = LLRs
 
-            # calculation of self.p1 and self.p0 is redundant?
-            LRs = np.float_power(10, LLRs_output)
-            self.p1[zero_elements] = 0
-            self.p1[ones_elements] = 1
-            self.p1[between_elements] = self._logit.predict_proba(X[between_elements].reshape(-1, 1))[:, 1]
-            self.p0 = 1 - self.p1
-            return np.float_power(10, LLRs_output)
-        else:
-            # calculation of self.p1 and self.p0 is redundant?
-            self.p1 = self._logit.predict_proba(X.reshape(-1, 1))[:, 1]  # probability of class 1
-            self.p0 = (1 - self.p1)
+        # calculation of self.p1 and self.p0 is redundant?
+        self.p1[zero_elements] = 0
+        self.p1[ones_elements] = 1
+        self.p1[between_elements] = self._logit.predict_proba(X[between_elements].reshape(-1, 1))[:, 1]
+        self.p0 = 1 - self.p1
+        return np.float_power(10, LLRs_output)
 
-            # get LLRs for X
-            LnLRs = np.add(self._logit.intercept_, np.multiply(self._logit.coef_, X))
-            LLRs = ln_to_log(LnLRs)
-            LLRs = LLRs.reshape(len(X))
-            return np.float_power(10, LLRs)
 
+class LogitCalibratorInProbabilityDomain(BaseEstimator, TransformerMixin):
+    """
+    Calculates a likelihood ratio of a score value, provided it is from one of
+    two distributions. Uses logistic regression for interpolation.
+    """
+
+    def fit(self, X, y):
+        # train logistic regression
+        X = X.reshape(-1, 1)
+        self._logit = LogisticRegression(class_weight='balanced')
+        self._logit.fit(X, y)
+        return self
+
+    def transform(self, X):
+
+        # calculation of self.p1 and self.p0 is redundant?
+        self.p1 = self._logit.predict_proba(X.reshape(-1, 1))[:, 1]  # probability of class 1
+        self.p0 = (1 - self.p1)
+
+        # get LLRs for X
+        LnLRs = np.add(self._logit.intercept_, np.multiply(self._logit.coef_, X))
+        LLRs = ln_to_log(LnLRs)
+        LLRs = LLRs.reshape(len(X))
+        return np.float_power(10, LLRs)
 
 
 class GaussianCalibrator(BaseEstimator, TransformerMixin):
     """
     Calculates a likelihood ratio of a score value, provided it is from one of
     two distributions. Uses a gaussian mixture model for interpolation.
+
+    First it transforms data (which is in probability domain) to logods domain
     """
-    def __init__(self, to_log_odds=True, n_components_H0=1, n_components_H1=1):
-        self.to_log_odds = to_log_odds
+    def __init__(self, n_components_H0=1, n_components_H1=1):
         self.n_components_H1 = n_components_H1
         self.n_components_H0 = n_components_H0
+        self.numerator = None
+        self.denominator = None
 
     def fit(self, X, y):
-        if self.to_log_odds:
+        #transform probs to logodds
+        X = to_log_odds(X)
 
-            #transform probs to logodds
-            self.X = to_log_odds(X)
+        #check whether training data is sane
+        check_misleading_Inf_negInf(X, y)
 
-            #check whether training data is sane
-            check_misleading_Inf_negInf(self.X,y)
-
-            # Gaussian mixture needs finite scale. Inf and negInf are treated as point masses at the extremes.
-            # Remove them from data for Gaussian mixture and calculate fraction data that is left.
-            # LRs in finite range will be corrected for fractions in transform function
-            X, y, self.numerator, self.denominator = compensate_and_remove_negInf_Inf(self.X,y)
+        # Gaussian mixture needs finite scale. Inf and negInf are treated as point masses at the extremes.
+        # Remove them from data for Gaussian mixture and calculate fraction data that is left.
+        # LRs in finite range will be corrected for fractions in transform function
+        X, y, self.numerator, self.denominator = compensate_and_remove_negInf_Inf(X, y)
 
         # perform Gaussian mixture as usual
         X0, X1 = Xy_to_Xn(X, y)
@@ -362,51 +491,78 @@ class GaussianCalibrator(BaseEstimator, TransformerMixin):
     def transform(self, X):
         self.p0 = np.empty(np.shape(X))
         self.p1 = np.empty(np.shape(X))
-        if self.to_log_odds:
-            # initiate LLRs_output
-            LLRs_output = np.empty(np.shape(X))
 
-            # transform probs to log_odds
-            X = to_log_odds(X)
+        # initiate LLRs_output
+        LLRs_output = np.empty(np.shape(X))
 
-            # get inf and neginf
-            wh_inf = np.isposinf(X)
-            wh_neginf = np.isneginf(X)
+        # transform probs to log_odds
+        X = to_log_odds(X)
 
-            # assign hard values for extremes
-            LLRs_output[wh_inf] = np.inf
-            LLRs_output[wh_neginf] = -1 * np.inf
-            self.p0[wh_inf] = 0
-            self.p1[wh_inf] = 1
-            self.p0[wh_neginf] = 1
-            self.p1[wh_neginf] = 0
+        # get inf and neginf
+        wh_inf = np.isposinf(X)
+        wh_neginf = np.isneginf(X)
 
-            # get elements that are not inf or neginf
-            el = np.all(np.array([np.isposinf(X) == False, np.isneginf(X) == False]), axis=0)
-            X = X[el]
+        # assign hard values for extremes
+        LLRs_output[wh_inf] = np.inf
+        LLRs_output[wh_neginf] = -1 * np.inf
+        self.p0[wh_inf] = 0
+        self.p1[wh_inf] = 1
+        self.p0[wh_neginf] = 1
+        self.p1[wh_neginf] = 0
+
+        # get elements that are not inf or neginf
+        el = np.isfinite(X)
+        X = X[el]
 
         #perform density calculations for X as usual
         X = X.reshape(-1, 1)
         ln_H1 = self._model1.score_samples(X)
         ln_H2 = self._model0.score_samples(X)
-        ln_dif = np.add(ln_H1, np.multiply(-1, ln_H2))
+        ln_dif = ln_H1 - ln_H2
         log10_dif = ln_to_log(ln_dif)
 
         # calculation of p0 and p1's redundant?
-        if self.to_log_odds:
-            self.p0[el] = np.multiply(self.denominator, np.exp(ln_H2))
-            self.p1[el] = np.multiply(self.numerator, np.exp(ln_H1))
+        self.p0[el] = np.multiply(self.denominator, np.exp(ln_H2))
+        self.p1[el] = np.multiply(self.numerator, np.exp(ln_H1))
 
-            #apply correction for fraction of Infs and negInfs
-            log10_compensator = np.add(np.log10(self.numerator), np.multiply(-1, np.log(self.denominator)))
-            LLRs_output[el] = np.add(log10_compensator, log10_dif)
-            return np.float_power(10, LLRs_output)
-        else:
-            self.p0 = np.exp(ln_H2)
-            self.p1 = np.exp(ln_H1)
-            return np.float_power(10, log10_dif)
+        #apply correction for fraction of Infs and negInfs
+        log10_compensator = np.add(np.log10(self.numerator), np.multiply(-1, np.log(self.denominator)))
+        LLRs_output[el] = np.add(log10_compensator, log10_dif)
+        return np.float_power(10, LLRs_output)
 
 
+class GaussianCalibratorInProbabilityDomain(BaseEstimator, TransformerMixin):
+    """
+    Calculates a likelihood ratio of a score value, provided it is from one of
+    two distributions. Uses a gaussian mixture model for interpolation.
+
+    Fits Gaussian on probabilities
+    """
+    def __init__(self, n_components_H0=1, n_components_H1=1):
+        self.n_components_H1 = n_components_H1
+        self.n_components_H0 = n_components_H0
+
+    def fit(self, X, y):
+        # perform Gaussian mixture
+        X0, X1 = Xy_to_Xn(X, y)
+        X0 = X0.reshape(-1, 1)
+        X1 = X1.reshape(-1, 1)
+        self._model0 = GaussianMixture(n_components=self.n_components_H0).fit(X0)
+        self._model1 = GaussianMixture(n_components=self.n_components_H1).fit(X1)
+        return self
+
+    def transform(self, X):
+        self.p0 = np.empty(np.shape(X))
+        self.p1 = np.empty(np.shape(X))
+        #perform density calculations for X
+        X = X.reshape(-1, 1)
+        ln_H1 = self._model1.score_samples(X)
+        ln_H2 = self._model0.score_samples(X)
+        ln_dif = ln_H1 - ln_H2
+        log10_dif = ln_to_log(ln_dif)
+        self.p0 = np.exp(ln_H2)
+        self.p1 = np.exp(ln_H1)
+        return np.float_power(10, log10_dif)
 
 
 class IsotonicCalibrator(BaseEstimator, TransformerMixin):
