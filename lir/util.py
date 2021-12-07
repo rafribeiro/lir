@@ -63,8 +63,17 @@ def to_odds(p):
 
 
 def to_log_odds(p):
-    odds = to_odds(p)
-    return np.nan_to_num(np.log10(odds))
+    with np.errstate(divide='ignore'):
+        complement = 1 - p
+        return np.log10(p) - np.log10(complement)
+
+
+def from_log_odds_to_probability(log_odds):
+    return to_probability(10 ** log_odds)
+
+
+def ln_to_log10(ln_data):
+    return np.log10(np.e) * ln_data
 
 
 def warn_deprecated():
