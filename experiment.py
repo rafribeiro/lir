@@ -24,15 +24,12 @@ def four_pl(s, a, b, c, d):
 def negative_log_likelihood_balanced(X, y, model, params):
     probs = model(X, *params)
     try:
-        v = -np.sum(np.log(probs ** y * (1 - probs) ** (1 - y)) / (y * np.sum(y) + (1 - y) * np.sum(1 - y)))
+        v = -np.sum(np.log(probs ** y * (1 - probs) ** (1 - y)) /
+                    (y * np.sum(y) + (1 - y) * np.sum(1 - y)))
         return v
     except Exception as e:
         print(v)
         raise e
-
-
-def optimize_callback(result):
-    print(result)
 
 
 class FourPL:
@@ -48,7 +45,7 @@ class FourPL:
 
         if estimate_c and estimate_d:
             self.model = four_pl
-            bounds.extend([((10**-10, 1-10**-10)), (10**-10, np.inf)])
+            bounds.extend([(10**-10, 1-10**-10), (10**-10, np.inf)])
         elif estimate_c:
             self.model = partial(four_pl, d=0)
             bounds.append((10**-10, 1-10**-10))
@@ -61,7 +58,7 @@ class FourPL:
         f = partial(negative_log_likelihood_balanced, X, y, self.model)
 
         result = minimize(f, np.array([.1] * (2 + estimate_d + estimate_c)),
-                          bounds=bounds, callback=optimize_callback)
+                          bounds=bounds)
         assert result.success
         self.coef_ = result.x
 

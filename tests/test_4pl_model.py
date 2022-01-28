@@ -7,13 +7,13 @@ import lir
 from experiment import negative_log_likelihood_balanced, FourPL
 from sklearn.linear_model import LogisticRegression
 
+
 def read_data(path):
     with open(path, 'r') as file:
         r = csv.reader(file)
         next(r)
         data = np.array([float(value) for _, value in r])
     return to_probability(np.array(data))
-
 
 
 class TestFourPL(unittest.TestCase):
@@ -32,8 +32,6 @@ class TestFourPL(unittest.TestCase):
         np.testing.assert_almost_equal(four_pl_model.coef_, logistic_coef, decimal=5)
 
     def test_pl_1_is_0(self):
-        # import warnings
-        # warnings.filterwarnings("error")
         X_same = np.concatenate([self.X_same, [0]])
         X_diff = np.concatenate([self.X_diff, [0]])
         y = np.concatenate([np.zeros(len(X_diff)), np.ones(len(X_same))])
@@ -42,20 +40,17 @@ class TestFourPL(unittest.TestCase):
         four_pl_model = FourPL()
         four_pl_model.fit(X, y)
 
-        probs = four_pl_model.predict_proba(X)[:,1]
+        probs = four_pl_model.predict_proba(X)[:, 1]
         odds = (to_odds(probs))
         with lir.plotting.show() as PAV_X:
-            PAV_X.pav(to_odds(X), y)
+            PAV_X.pav(odds, y)
             PAV_X.title("PAV plot of X")
-
 
         with lir.plotting.show() as ax:
             ax.pav(to_odds(probs), y)
             ax.title("PAV plot of 3PL logreg c varied")
 
     def test_pl_0_is_1(self):
-        # import warnings
-        # warnings.filterwarnings("error")
         X_same = np.concatenate([self.X_same, [1]])
         X_diff = np.concatenate([self.X_diff, [1]])
         y = np.concatenate([np.zeros(len(X_diff)), np.ones(len(X_same))])
@@ -70,16 +65,13 @@ class TestFourPL(unittest.TestCase):
             PAV_X.pav(odds, y)
             PAV_X.title("PAV plot of X")
 
-
         with lir.plotting.show() as ax:
             ax.pav(to_odds(probs), y)
             ax.title("PAV plot of 3PL logreg d varied")
 
     def test_pl_0_is_1_and_pl_1_is_0(self):
-        # import warnings
-        # warnings.filterwarnings("error")
-        X_same = np.concatenate([self.X_same, [0,1]])
-        X_diff = np.concatenate([self.X_diff, [0,1]])
+        X_same = np.concatenate([self.X_same, [0, 1]])
+        X_diff = np.concatenate([self.X_diff, [0, 1]])
         y = np.concatenate([np.zeros(len(X_diff)), np.ones(len(X_same))])
         X = np.concatenate([X_diff, X_same])
 
@@ -92,17 +84,6 @@ class TestFourPL(unittest.TestCase):
             PAV_X.pav(odds, y)
             PAV_X.title("PAV plot of X")
 
-
         with lir.plotting.show() as ax:
             ax.pav(to_odds(probs), y)
             ax.title("PAV plot of 4PL logreg c and d varied")
-
-
-
-
-
-
-
-
-
-
