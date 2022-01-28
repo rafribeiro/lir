@@ -67,13 +67,36 @@ class TestFourPL(unittest.TestCase):
         probs = four_pl_model.predict_proba(X)[:,1]
         odds = (to_odds(probs))
         with lir.plotting.show() as PAV_X:
-            PAV_X.pav(to_odds(X), y)
+            PAV_X.pav(odds, y)
             PAV_X.title("PAV plot of X")
 
 
         with lir.plotting.show() as ax:
             ax.pav(to_odds(probs), y)
             ax.title("PAV plot of 3PL logreg d varied")
+
+    def test_pl_0_is_1_and_pl_1_is_0(self):
+        # import warnings
+        # warnings.filterwarnings("error")
+        X_same = np.concatenate([self.X_same, [0,1]])
+        X_diff = np.concatenate([self.X_diff, [0,1]])
+        y = np.concatenate([np.zeros(len(X_diff)), np.ones(len(X_same))])
+        X = np.concatenate([X_diff, X_same])
+
+        four_pl_model = FourPL()
+        four_pl_model.fit(X, y)
+
+        probs = four_pl_model.predict_proba(X)[:,1]
+        odds = (to_odds(probs))
+        with lir.plotting.show() as PAV_X:
+            PAV_X.pav(odds, y)
+            PAV_X.title("PAV plot of X")
+
+
+        with lir.plotting.show() as ax:
+            ax.pav(to_odds(probs), y)
+            ax.title("PAV plot of 4PL logreg c and d varied")
+
 
 
 

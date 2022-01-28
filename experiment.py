@@ -48,13 +48,13 @@ class FourPL:
 
         if estimate_c and estimate_d:
             self.model = four_pl
-            bounds.extend([(0, 1), (0, np.inf)])
+            bounds.extend([((10**-10, 1-10**-10)), (10**-10, np.inf)])
         elif estimate_c:
             self.model = partial(four_pl, d=0)
             bounds.append((10**-10, 1-10**-10))
         elif estimate_d:
-            self.model = bind(four_pl, ..., ..., 0, ...)
-            bounds.append((0, np.inf))
+            self.model = bind(four_pl, ..., ..., ..., 0, ...)
+            bounds.append((10**-10, np.inf))
         else:
             self.model = partial(four_pl, c=0, d=0)
 
