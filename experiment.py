@@ -55,6 +55,7 @@ class FourPL:
         self.coef_ = result.x
 
     def predict_proba(self, X):
+        X = to_log_odds(X)
         proba = self.model(X, *self.coef_)
         result = np.stack([1-proba, proba], axis=1)
         assert result.shape[0] == proba.shape[0]
