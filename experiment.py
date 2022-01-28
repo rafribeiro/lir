@@ -43,9 +43,9 @@ class FourPL:
             bounds.append((10**-10, 1-10**-10))
         elif estimate_d:
             #self.model = partial(four_pl, c=0)
-            def four_pl(s, a, b, d):
+            def three_pl(s, a, b, d):
                 return 1/(1 + d) * 1 / (1 + np.exp(-a * s - b))
-            self.model = four_pl
+            self.model = three_pl
             bounds.append((0, np.inf))
         else:
             self.model = partial(four_pl, c=0, d=0)
