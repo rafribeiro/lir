@@ -2,6 +2,12 @@ import numpy as np
 import unittest
 import warnings
 
+<<<<<<< HEAD
+=======
+from context import lir
+assert lir  # so import optimizer doesn't remove the line above
+
+>>>>>>> 211f1b8d4b4f09e9beaf4adf2deae6cba12f33b4
 from lir.calibration import IsotonicCalibrator
 from lir.calibration import KDECalibrator, KDECalibratorInProbabilityDomain
 from lir.calibration import GaussianCalibrator, GaussianCalibratorInProbabilityDomain

@@ -24,13 +24,23 @@ with open("setup.py") as f:
                 if keyword.arg == "version":
                     original_version = keyword.value.value
                     major, minor, patch = keyword.value.value.split(".")
-                    if int(patch) != 0:
+                    if patch == '0':
                         # If the last digit is 0, it suggests that a major or minor
-                        # release was done manually. In that case, don't alter anything.
+                        # release was done manually. In that case, we add an extra 0.
+                        # This is normalized by setuptools, so the release works just fine.
+                        # The next commit to master will also work, because patch no longer
+                        # is '0' but will be '00'. Quite hacky, but for now fixes this.
+                        # Better ideas are welcome.
+                        patch = '00'
+                        bumped_version = keyword.value.value = f"{major}.{minor}.{patch}0"
+                    else:
                         patch = str(int(patch) + 1)
-                    bumped_version = keyword.value.value = f"{major}.{minor}.{patch}"
+                        bumped_version = keyword.value.value = f"{major}.{minor}.{patch}"
     bumped_setup = black.format_str(ast.unparse(parsed_setup), mode=black.FileMode())
-    print(bumped_version)
+    if patch == '00':
+        print(bumped_version[:-1])
+    else:
+        print(bumped_version)
 
 with open("setup.py", "w") as w:
     w.write(bumped_setup)
