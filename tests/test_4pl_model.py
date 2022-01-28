@@ -31,6 +31,16 @@ class TestFourPL(unittest.TestCase):
         logistic_coef = [logistic.coef_[0][0], logistic.intercept_[0]]
         np.testing.assert_almost_equal(four_pl_model.coef_, logistic_coef, decimal=5)
 
+        probs = four_pl_model.predict_proba(X)[:, 1]
+        odds = (to_odds(probs))
+        with lir.plotting.show() as PAV_X:
+            PAV_X.pav(to_odds(X), y)
+            PAV_X.title("PAV plot of X")
+
+        with lir.plotting.show() as ax:
+            ax.pav(odds, y)
+            ax.title("PAV plot of 4PL logreg c = 0 and d = 0")
+
     def test_pl_1_is_0(self):
         X_same = np.concatenate([self.X_same, [0]])
         X_diff = np.concatenate([self.X_diff, [0]])
@@ -51,8 +61,8 @@ class TestFourPL(unittest.TestCase):
             ax.title("PAV plot of 3PL logreg c varied")
 
     def test_pl_0_is_1(self):
-        X_same = np.concatenate([self.X_same, [1]])
-        X_diff = np.concatenate([self.X_diff, [1]])
+        X_same = np.concatenate([self.X_same, [1, 1-10**-10]])
+        X_diff = np.concatenate([self.X_diff, [1, 1-10**-10]])
         y = np.concatenate([np.zeros(len(X_diff)), np.ones(len(X_same))])
         X = np.concatenate([X_diff, X_same])
 
