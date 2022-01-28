@@ -44,8 +44,14 @@ class TestFourPL(unittest.TestCase):
 
         probs = four_pl_model.predict_proba(X)[:,1]
         odds = (to_odds(probs))
+        with lir.plotting.show() as PAV_X:
+            PAV_X.pav(to_odds(X), y)
+            PAV_X.title("PAV plot of X")
+
+
         with lir.plotting.show() as ax:
             ax.pav(to_odds(probs), y)
+            ax.title("PAV plot of 3PL logreg")
 
 
 
