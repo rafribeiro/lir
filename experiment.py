@@ -6,6 +6,17 @@ import numpy as np
 from lir import to_log_odds
 
 
+class bind(partial):
+    """
+    An improved version of partial which accepts Ellipsis (...) as a placeholder
+    """
+    def __call__(self, *args, **keywords):
+        keywords = {**self.keywords, **keywords}
+        iargs = iter(args)
+        args = (next(iargs) if arg is ... else arg for arg in self.args)
+        return self.func(*args, *iargs, **keywords)
+
+
 def four_pl(s, a, b, c, d):
     return c + ((1 - c) / (1 + d)) * 1 / (1 + np.exp(-a * s - b))
 
@@ -42,10 +53,7 @@ class FourPL:
             self.model = partial(four_pl, d=0)
             bounds.append((10**-10, 1-10**-10))
         elif estimate_d:
-            #self.model = partial(four_pl, c=0)
-            def three_pl(s, a, b, d):
-                return 1/(1 + d) * 1 / (1 + np.exp(-a * s - b))
-            self.model = three_pl
+            self.model = bind(four_pl, ..., ..., 0, ...)
             bounds.append((0, np.inf))
         else:
             self.model = partial(four_pl, c=0, d=0)
