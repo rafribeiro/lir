@@ -66,6 +66,6 @@ class TestFourParameterLogisticCalibrator(unittest.TestCase):
         four_pl_model = FourParameterLogisticCalibrator()
         four_pl_model.fit(X, y)
 
-        probs = four_pl_model.predict_proba(X)[:,1]
+        probs = four_pl_model.predict_proba(X)[:, 1]
         odds = (to_odds(probs))
         np.testing.assert_equal(devpav(odds, y), 0.10475112893952891)

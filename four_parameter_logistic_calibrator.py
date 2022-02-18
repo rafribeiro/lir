@@ -65,7 +65,7 @@ class FourParameterLogisticCalibrator:
         estimate_c = np.any(np.isneginf(X[y == 1]))
         estimate_d = np.any(np.isposinf(X[y == 0]))
 
-        #define bounds for a and b
+        # define bounds for a and b
         bounds = [(-np.inf, np.inf), (-np.inf, np.inf)]
 
         if estimate_c and estimate_d:
