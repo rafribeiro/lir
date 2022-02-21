@@ -527,6 +527,7 @@ def plot_score_distribution_and_calibrator_fit(calibrator,
                                                scores,
                                                y,
                                                bins=20,
+                                               weighted=True,
                                                savefig=None,
                                                show=None):
     """
@@ -587,7 +588,7 @@ def plot_score_distribution_and_calibrator_fit(calibrator,
 
     for cls, weight in zip(np.unique(y), weights):
         plt.hist(scores[y == cls], bins=bins, alpha=.25,
-                 label=f'class {cls}', weights=weight)
+                 label=f'class {cls}', weights=weight if weighted else None)
     plt.plot(x, calibrator.p1, label='fit class 1')
     plt.plot(x, calibrator.p0, label='fit class 0')
 
