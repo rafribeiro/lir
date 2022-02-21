@@ -221,9 +221,18 @@ def tippett(lrs, y, ax=plt):
     ax.legend()
 
 
-def score_distribution(scores, y, bins=20, ax=plt):
+def score_distribution(scores, y, bins=20, weighted=True, ax=plt):
     """
     plots the distributions of scores calculated by the (fitted) lr_system
+
+    Parameters
+    ----------
+    scores : scores of (fitted) lr_system
+    y : a numpy array of labels (0 or 1)
+    bins: number of bins to divide scores into
+    weighted: if y-axis should be weighted for frequency within each class
+    ax: axes to plot figure to
+
     """
     ax.rcParams.update({'font.size': 15})
     bins = np.histogram_bin_edges(scores[np.isfinite(scores)], bins=bins)
@@ -270,7 +279,7 @@ def score_distribution(scores, y, bins=20, ax=plt):
 
     for cls, weight in zip(np.unique(y), weights):
         ax.hist(scores[y == cls], bins=bins, alpha=.25,
-                 label=f'class {cls}', weights=weight)
+                 label=f'class {cls}', weights=weight if weighted else None)
 
 
 def calibrator_fit(calibrator, score_range=(0, 1), resolution=100, ax=plt):
