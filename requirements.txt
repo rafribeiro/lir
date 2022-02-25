@@ -1,5 +1,1 @@
-matplotlib
-numpy
-scipy
-scikit-learn
-tqdm
+.  # moved to setup.py, this ensures pip install -r requirements.txt still works
