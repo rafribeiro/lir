@@ -1,11 +1,7 @@
-import os
 from setuptools import setup, find_packages
 
-try:
-    with open("readme.md") as f:
-        long_description = f.read()
-except FileNotFoundError:
-    long_description = ""
+with open("README.md") as f:
+    long_description = f.read()
 
 setup(
     name="lir",
