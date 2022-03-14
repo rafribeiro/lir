@@ -7,7 +7,7 @@ from .calibration import IsotonicCalibrator
 from .util import Xn_to_Xy, Xy_to_Xn, to_probability, LR
 
 LrStats = collections.namedtuple('LrStats',
-                                 ['avg_llr', 'avg_llr_class0', 'avg_llr_class1', 'avg_p0_class0', 'avg_p1_class0',
+                                 ['avg_log2lr', 'avg_log2lr_class0', 'avg_log2lr_class1', 'avg_p0_class0', 'avg_p1_class0',
                                   'avg_p0_class1', 'avg_p1_class1', 'cllr_class0', 'cllr_class1', 'cllr', 'lr_class0',
                                   'lr_class1', 'cllr_min', 'cllr_cal'])
 
@@ -281,14 +281,14 @@ def calculate_lr_statistics(lr_class0, lr_class1):
 
     with warnings.catch_warnings():
         try:
-            avg_llr_class0 = np.mean(np.log2(1 / lr_class0))
-            avg_llr_class1 = np.mean(np.log2(lr_class1))
-            avg_llr = avg(avg_llr_class0, avg_llr_class1)
+            avg_log2lr_class0 = np.mean(np.log2(1 / lr_class0))
+            avg_log2lr_class1 = np.mean(np.log2(lr_class1))
+            avg_log2lr = avg(avg_log2lr_class0, avg_log2lr_class1)
         except RuntimeWarning:
             # possibly illegal LRs such as 0 or inf
-            avg_llr_class0 = np.nan
-            avg_llr_class1 = np.nan
-            avg_llr = np.nan
+            avg_log2lr_class0 = np.nan
+            avg_log2lr_class1 = np.nan
+            avg_log2lr = np.nan
 
     lrs, y = Xn_to_Xy(lr_class0, lr_class1)
     cllr_class0 = cllr(lrs, y, weights=(1, 0))
@@ -299,5 +299,7 @@ def calculate_lr_statistics(lr_class0, lr_class1):
     cllrmin_class1 = cllr_min(lrs, y, weights=(0, 1))
     cllrmin = .5 * (cllrmin_class0 + cllrmin_class1)
 
-    return LrStats(avg_llr, avg_llr_class0, avg_llr_class1, avg_p0_class0, avg_p1_class0, avg_p0_class1, avg_p1_class1,
-                   cllr_class0, cllr_class1, cllr_, lr_class0, lr_class1, cllrmin, cllr_ - cllrmin)
+    return LrStats(avg_log2lr, avg_log2lr_class0, avg_log2lr_class1,
+                   avg_p0_class0, avg_p1_class0, avg_p0_class1, avg_p1_class1,
+                   cllr_class0, cllr_class1, cllr_, lr_class0, lr_class1,
+                   cllrmin, cllr_ - cllrmin)
