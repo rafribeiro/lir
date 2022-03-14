@@ -25,11 +25,20 @@ class AbsDiffTransformer(sklearn.base.TransformerMixin):
 
 class RankTransformer(sklearn.base.TransformerMixin):
     """
-    Assign ranks to X, dealing with ties appropriately.
+    Compute the rankings of a dataset, relative to another dataset.
+    Rankings are in [0, 1].
+
+    To be able to compute the rankings of dataset Z relative to dataset X,
+    'fit' will create a ranking function for each feature, based on X.
+    'transform' will apply ranking of Z based on dataset X.
+
+
+
+    Transform:
     Expects:
         - X is of shape (n,f) with n=number of instances; f=number of features;
     Returns:
-        - X has shape (n, f), and y
+        - rankings with shape (n, f)
     """
     def __init__(self):
         self.rank_functions = None
@@ -42,6 +51,7 @@ class RankTransformer(sklearn.base.TransformerMixin):
         return self
 
     def transform(self, X):
+        assert self.rank_functions
         assert len(X.shape) == 2
         assert X.shape[1] == len(self.rank_functions)
         ranks = [self.rank_functions[i](X[:, i]) for i in range(X.shape[1])]

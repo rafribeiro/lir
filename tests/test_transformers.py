@@ -15,7 +15,7 @@ warnings.simplefilter("error")
 
 class TestRankTransformer(unittest.TestCase):
     def test_fit_transform(self):
-        """When X itself is transformed, it should give it's own ranks"""
+        """When X itself is transformed, it should return its own ranks"""
         X = np.array([[0.1, 0.4, 0.5],
                       [0.2, 0.5, 0.55],
                       [0.15, 0.51, 0.55],
@@ -37,10 +37,23 @@ class TestRankTransformer(unittest.TestCase):
         rank_transformer = RankTransformer()
         rank_transformer.fit(X)
         ranks = rank_transformer.transform(Z)
-        self.assertSequenceEqual(ranks.tolist(),
-                                 np.array([[0, 0, 0], [1, 1, 1]]).tolist(),
-                                 'Elements smaller than lowest value should map'
-                                 ' to 0, larger than highest value to 1')
+        self.assertSequenceEqual(ranks.tolist(), [[0, 0, 0], [1, 1, 1]],
+                                 'Elements smaller than the lowest value should'
+                                 'map to 0, larger than the highest value to 1')
+
+    def test_interpolation(self):
+        """Values inbetween values of X result in interpolated ranking."""
+        X = np.array([[0, 0, 0],
+                      [1, 1, 1]])
+        Z = np.array([[0.1, 0.3, 0.5]])
+        rank_transformer = RankTransformer()
+        rank_transformer.fit(X)
+        ranks = rank_transformer.transform(Z)
+        # Ranks are interpolated between 0.5 (rank of 0) and 1 (rank of 1).
+        # We expect a linear interpolation.
+        expected_ranks = 0.5 + np.array([[0.1, 0.3, 0.5]])*0.5
+        self.assertSequenceEqual(ranks.tolist(), expected_ranks.tolist(),
+                                 'Interpolation failed.')
 
 
 class TestPairing(unittest.TestCase):
