@@ -1,5 +1,7 @@
 import numpy as np
 import sklearn
+from scipy.interpolate import interp1d
+from scipy.stats import rankdata
 
 
 class AbsDiffTransformer(sklearn.base.TransformerMixin):
@@ -19,6 +21,31 @@ class AbsDiffTransformer(sklearn.base.TransformerMixin):
         assert X.shape[2] == 2
 
         return np.abs(X[:,:,0] - X[:,:,1])
+
+
+class RankTransformer(sklearn.base.TransformerMixin):
+    """
+    Assign ranks to X, dealing with ties appropriately.
+    Expects:
+        - X is of shape (n,f) with n=number of instances; f=number of features;
+    Returns:
+        - X has shape (n, f), and y
+    """
+    def __init__(self):
+        self.rank_functions = None
+
+    def fit(self, X, y=None):
+        assert len(X.shape) == 2
+        ranks_X = rankdata(X, axis=0)/len(X)
+        self.rank_functions = [interp1d(X[:, i], ranks_X[:, i], bounds_error=False,
+                                        fill_value=(0, 1)) for i in range(X.shape[1])]
+        return self
+
+    def transform(self, X):
+        assert len(X.shape) == 2
+        assert X.shape[1] == len(self.rank_functions)
+        ranks = [self.rank_functions[i](X[:, i]) for i in range(X.shape[1])]
+        return np.asarray(ranks).transpose()
 
 
 class InstancePairing(sklearn.base.TransformerMixin):
