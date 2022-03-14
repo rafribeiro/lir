@@ -13,7 +13,7 @@ from lir.transformers import InstancePairing, RankTransformer
 warnings.simplefilter("error")
 
 
-class TestRankingTransformer(unittest.TestCase):
+class TestRankTransformer(unittest.TestCase):
     def test_fit_transform(self):
         """When X itself is transformed, it should give it's own ranks"""
         X = np.array([[0.1, 0.4, 0.5],
