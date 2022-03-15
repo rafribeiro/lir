@@ -23,17 +23,15 @@ class AbsDiffTransformer(sklearn.base.TransformerMixin):
         return np.abs(X[:,:,0] - X[:,:,1])
 
 
-class RankTransformer(sklearn.base.TransformerMixin):
+class PercentileRankTransformer(sklearn.base.TransformerMixin):
     """
     Compute the rankings of a dataset, relative to another dataset.
-    Rankings are in [0, 1]. Handling ties: the maximum of the ranks that would
+    Rankings are in range [0, 1]. Handling ties: the maximum of the ranks that would
     have been assigned to all the tied values is assigned to each value.
 
     To be able to compute the rankings of dataset Z relative to dataset X,
     'fit' will create a ranking function for each feature, based on X.
     'transform' will apply ranking of Z based on dataset X.
-
-
 
     Transform:
     Expects:
@@ -52,9 +50,10 @@ class RankTransformer(sklearn.base.TransformerMixin):
         return self
 
     def transform(self, X):
-        assert self.rank_functions
+        assert self.rank_functions, "transform() called before fit()"
         assert len(X.shape) == 2
-        assert X.shape[1] == len(self.rank_functions)
+        assert X.shape[1] == len(self.rank_functions),\
+            "number of features used for fit() and transform()t should be equal"
         ranks = [self.rank_functions[i](X[:, i]) for i in range(X.shape[1])]
         return np.asarray(ranks).transpose()
 
