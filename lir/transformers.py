@@ -35,7 +35,7 @@ class PercentileRankTransformer(sklearn.base.TransformerMixin):
 
     Transform:
     Expects:
-        - X is of shape (n,f) with n=number of instances; f=number of features;
+        - X is of shape (n,f) with n=number of measurements; f=number of features;
     Returns:
         - rankings with shape (n, f)
     """
