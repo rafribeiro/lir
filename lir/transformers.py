@@ -1,5 +1,7 @@
 import numpy as np
 import sklearn
+from scipy.interpolate import interp1d
+from scipy.stats import rankdata
 
 
 class AbsDiffTransformer(sklearn.base.TransformerMixin):
@@ -19,6 +21,47 @@ class AbsDiffTransformer(sklearn.base.TransformerMixin):
         assert X.shape[2] == 2
 
         return np.abs(X[:,:,0] - X[:,:,1])
+
+
+class PercentileRankTransformer(sklearn.base.TransformerMixin):
+    """
+    Compute the percentile rankings of a dataset, relative to another dataset.
+    Rankings are in range [0, 1]. Handling ties: the maximum of the ranks that
+    would have been assigned to all the tied values is assigned to each value.
+
+    To be able to compute the rankings of dataset Z relative to dataset X,
+    'fit' will create a ranking function for each feature, based on X.
+    'transform' will apply ranking of Z based on dataset X.
+
+    Fit:
+    Expects:
+        - X is of shape (n, f) with n = number of measurements,
+        f = number of features
+
+    Transform:
+    Expects:
+        - X is of shape (m, f) with m = number of measurements,
+        f = number of features
+    Returns:
+        - rankings with shape (m, f)
+    """
+    def __init__(self):
+        self.rank_functions = None
+
+    def fit(self, X, y=None):
+        assert len(X.shape) == 2
+        ranks_X = rankdata(X, method='max', axis=0)/len(X)
+        self.rank_functions = [interp1d(X[:, i], ranks_X[:, i], bounds_error=False,
+                                        fill_value=(0, 1)) for i in range(X.shape[1])]
+        return self
+
+    def transform(self, X):
+        assert self.rank_functions, "transform() called before fit()"
+        assert len(X.shape) == 2
+        assert X.shape[1] == len(self.rank_functions),\
+            "number of features used for fit() and transform() should be equal"
+        ranks = [self.rank_functions[i](X[:, i]) for i in range(X.shape[1])]
+        return np.stack(ranks, axis=1)
 
 
 class InstancePairing(sklearn.base.TransformerMixin):
