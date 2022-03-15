@@ -26,8 +26,8 @@ class AbsDiffTransformer(sklearn.base.TransformerMixin):
 class PercentileRankTransformer(sklearn.base.TransformerMixin):
     """
     Compute the rankings of a dataset, relative to another dataset.
-    Rankings are in range [0, 1]. Handling ties: the maximum of the ranks that would
-    have been assigned to all the tied values is assigned to each value.
+    Rankings are in range [0, 1]. Handling ties: the maximum of the ranks that
+    would have been assigned to all the tied values is assigned to each value.
 
     To be able to compute the rankings of dataset Z relative to dataset X,
     'fit' will create a ranking function for each feature, based on X.

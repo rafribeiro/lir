@@ -69,8 +69,6 @@ class TestPercentileRankTransformer(unittest.TestCase):
         self.assertEqual(ranks, 0.8, "Ties should be given the maximum value")
 
 
-
-
 class TestPairing(unittest.TestCase):
     def test_pairing(self):
         X = np.arange(30).reshape(10, 3)
