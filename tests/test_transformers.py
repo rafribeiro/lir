@@ -23,7 +23,8 @@ class TestRankTransformer(unittest.TestCase):
         rank_transformer = RankTransformer()
         rank_transformer.fit(X)
         ranks = rank_transformer.transform(X)
-        self.assertSequenceEqual(ranks.tolist(), (rankdata(X, axis=0)/len(X)).tolist(),
+        self.assertSequenceEqual(ranks.tolist(),
+                                 (rankdata(X, method='max', axis=0)/len(X)).tolist(),
                                  'Ranking X and RankTransform X should give the same results')
 
     def test_extrapolation(self):
@@ -42,7 +43,8 @@ class TestRankTransformer(unittest.TestCase):
                                  'map to 0, larger than the highest value to 1')
 
     def test_interpolation(self):
-        """Values inbetween values of X result in interpolated ranking."""
+        """Values inbetween values of X result in interpolated ranking,
+        with linear interpolation."""
         X = np.array([[0, 0, 0],
                       [1, 1, 1]])
         Z = np.array([[0.1, 0.3, 0.5]])
@@ -54,6 +56,18 @@ class TestRankTransformer(unittest.TestCase):
         expected_ranks = 0.5 + np.array([[0.1, 0.3, 0.5]])*0.5
         self.assertSequenceEqual(ranks.tolist(), expected_ranks.tolist(),
                                  'Interpolation failed.')
+
+    def test_ties(self):
+        """Ties are given the maximum value (the maximum of the ranks that would
+        have been assigned to all the tied values is assigned to each value)."""
+        X = np.array([[0.1], [0.1], [0.1], [0.1], [0.3]])
+        Z = np.array([[0.1]])
+        rank_transformer = RankTransformer()
+        rank_transformer.fit(X)
+        ranks = rank_transformer.transform(Z)
+        self.assertEqual(ranks, 0.8, "Ties should be given the maximum value")
+
+
 
 
 class TestPairing(unittest.TestCase):
