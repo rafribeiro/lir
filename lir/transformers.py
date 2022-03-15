@@ -59,7 +59,7 @@ class PercentileRankTransformer(sklearn.base.TransformerMixin):
         assert self.rank_functions, "transform() called before fit()"
         assert len(X.shape) == 2
         assert X.shape[1] == len(self.rank_functions),\
-            "number of features used for fit() and transform()t should be equal"
+            "number of features used for fit() and transform() should be equal"
         ranks = [self.rank_functions[i](X[:, i]) for i in range(X.shape[1])]
         return np.stack(ranks, axis=1)
 
