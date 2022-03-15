@@ -33,11 +33,17 @@ class PercentileRankTransformer(sklearn.base.TransformerMixin):
     'fit' will create a ranking function for each feature, based on X.
     'transform' will apply ranking of Z based on dataset X.
 
+    Fit:
+    Expects:
+        - X is of shape (n, f) with n = number of measurements,
+        f = number of features
+
     Transform:
     Expects:
-        - X is of shape (n,f) with n=number of measurements; f=number of features;
+        - X is of shape (m, f) with m = number of measurements,
+        f = number of features
     Returns:
-        - rankings with shape (n, f)
+        - rankings with shape (m, f)
     """
     def __init__(self):
         self.rank_functions = None
