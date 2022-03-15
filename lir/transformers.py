@@ -65,7 +65,7 @@ class PercentileRankTransformer(sklearn.base.TransformerMixin):
 
 
 class InstancePairing(sklearn.base.TransformerMixin):
-    def __init__(self, same_source_limit=None, different_source_limit=None):
+    def __init__(self, same_source_limit=None, different_source_limit=None, seed=None):
         """
         Creates pairs of instances.
 
@@ -82,9 +82,11 @@ class InstancePairing(sklearn.base.TransformerMixin):
         Parameters:
             - same_source_limit (int or None): the maximum number of same source pairs (None = no limit)
             - different_source_limit (int or None or 'balanced'): the maximum number of different source pairs (None = no limit; 'balanced' = number of same source pairs)
+            - seed (int or None): seed to make pairing reproducible
         """
         self._ss_limit = same_source_limit
         self._ds_limit = different_source_limit
+        self.rng = np.random.default_rng(seed=seed)
 
     def fit(self, X):
         return self
@@ -106,12 +108,12 @@ class InstancePairing(sklearn.base.TransformerMixin):
 
         rows_same = np.where((pairing[:, 0] < pairing[:, 1]) & same_source)[0]  # pairs with different id and same source
         if self._ss_limit is not None and rows_same.size > self._ss_limit:
-            rows_same = np.random.choice(rows_same, self._ss_limit, replace=False)
+            rows_same = self.rng.choice(rows_same, self._ss_limit, replace=False)
 
         rows_diff = np.where((pairing[:, 0] < pairing[:, 1]) & ~same_source)[0]  # pairs with different id and different source
         ds_limit = rows_diff.size if self._ds_limit is None else rows_same.size if self._ds_limit == 'balanced' else self._ds_limit
         if rows_diff.size > ds_limit:
-            rows_diff = np.random.choice(rows_diff, ds_limit, replace=False)
+            rows_diff = self.rng.choice(rows_diff, ds_limit, replace=False)
 
         pairing = np.concatenate([pairing[rows_same,:], pairing[rows_diff,:]])
         self.pairing = pairing
