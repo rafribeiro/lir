@@ -87,7 +87,18 @@ class TestPairing(unittest.TestCase):
         self.assertEqual(np.sum(y_pairs == 0), 5, 'number of different source pairs')
 
         self.assertTrue(np.all(pairing.pairing[:,0] != pairing.pairing[:,1]), 'identity in pairs')
-        
+
+        pairing_seed_1 = InstancePairing(different_source_limit='balanced', seed=123)
+        X_pairs_1, y_pairs_1 = pairing_seed_1.transform(X, y)
+
+        pairing_seed_2 = InstancePairing(different_source_limit='balanced', seed=123)
+        X_pairs_2, y_pairs_2 = pairing_seed_2.transform(X, y)
+
+        pairing_seed_3 = InstancePairing(different_source_limit='balanced', seed=456)
+        X_pairs_3, y_pairs_3 = pairing_seed_3.transform(X, y)
+
+        self.assertTrue(np.all(X_pairs_1 == X_pairs_2), 'same seed, same X pairs')
+        self.assertTrue(np.any(X_pairs_1 != X_pairs_3), 'different seed, different X pairs')
 
 if __name__ == '__main__':
     unittest.main()
