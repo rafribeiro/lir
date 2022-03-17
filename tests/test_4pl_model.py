@@ -4,8 +4,9 @@ from lir.util import to_probability, to_log_odds, to_odds
 import numpy as np
 import lir
 from lir.metrics import devpav
-from four_parameter_logistic_calibrator import FourParameterLogisticCalibrator
+from lir.calibration import FourParameterLogisticCalibrator
 from sklearn.linear_model import LogisticRegression
+
 
 
 def read_data(path):
@@ -40,9 +41,9 @@ class TestFourParameterLogisticCalibrator(unittest.TestCase):
         four_pl_model = FourParameterLogisticCalibrator()
         four_pl_model.fit(X, y)
 
-        probs = four_pl_model.predict_proba(X)[:, 1]
+        probs = four_pl_model.transform(X)[:, 1]
         odds = (to_odds(probs))
-        np.testing.assert_equal(devpav(odds, y), 0.12029952948152635)
+        np.testing.assert_almost_equal(devpav(odds, y), 0.12029952948152635, decimal=5)
 
     def test_pl_0_is_1(self):
         X_same = np.concatenate([self.X_same, [1, 1-10**-10]])
@@ -53,9 +54,9 @@ class TestFourParameterLogisticCalibrator(unittest.TestCase):
         four_pl_model = FourParameterLogisticCalibrator()
         four_pl_model.fit(X, y)
 
-        probs = four_pl_model.predict_proba(X)[:, 1]
+        probs = four_pl_model.transform(X)[:, 1]
         odds = (to_odds(probs))
-        np.testing.assert_equal(devpav(odds, y), 0.15273304557837525)
+        np.testing.assert_almost_equal(devpav(odds, y), 0.15273304557837525, decimal=5)
 
     def test_pl_0_is_1_and_pl_1_is_0(self):
         X_same = np.concatenate([self.X_same, [0, 10**-10, 1, 1-10**-10]])
@@ -66,6 +67,9 @@ class TestFourParameterLogisticCalibrator(unittest.TestCase):
         four_pl_model = FourParameterLogisticCalibrator()
         four_pl_model.fit(X, y)
 
-        probs = four_pl_model.predict_proba(X)[:, 1]
+        probs = four_pl_model.transform(X)[:, 1]
         odds = (to_odds(probs))
-        np.testing.assert_equal(devpav(odds, y), 0.10475112893952891)
+        np.testing.assert_almost_equal(devpav(odds, y), 0.10475112893952891, decimal=5)
+
+if __name__ == '__main__':
+    unittest.main()

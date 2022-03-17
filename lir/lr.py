@@ -5,7 +5,7 @@ import sklearn
 import sklearn.mixture
 
 from .metrics import calculate_lr_statistics
-from .util import Xn_to_Xy, LR
+from .util import Xn_to_Xy, LR, to_log_odds
 
 
 LOG = logging.getLogger(__name__)
@@ -25,6 +25,9 @@ class CalibratedScorer:
 
     def fit_calibrator(self, X, y):
         p = self.scorer.predict_proba(X)
+        # tolerance = 1*10**-300
+        # p[np.where(np.logical_and(p[:,1] == 0, y==1)), 1] = 0+tolerance
+        # p[np.where(np.logical_and(p[:,1] == 1, y==0)), 1] = 1-tolerance
         self.calibrator.fit(p[:, 1], y)
 
     def predict_lr(self, X):
