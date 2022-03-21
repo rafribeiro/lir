@@ -68,6 +68,18 @@ class TestPercentileRankTransformer(unittest.TestCase):
         ranks = rank_transformer.transform(Z)
         self.assertEqual(ranks, 0.8, "Ties should be given the maximum value")
 
+    def test_constant_feature(self):
+        """If a feature is a constant value c, the rank should be 0 for x < c
+        and 1 for x >= c."""
+        X = np.array([[1], [1], [1], [1]])
+        Z = np.array([[0], [1], [2]])
+        rank_transformer = PercentileRankTransformer()
+        rank_transformer.fit(X)
+        ranks = rank_transformer.transform(Z)
+        self.assertEqual(ranks.tolist(), [[0], [1], [1]],
+                         "If a feature is a constant value, "
+                         "interpolation should still work")
+
 
 class TestPairing(unittest.TestCase):
     def test_pairing(self):
@@ -99,6 +111,7 @@ class TestPairing(unittest.TestCase):
 
         self.assertTrue(np.all(X_pairs_1 == X_pairs_2), 'same seed, same X pairs')
         self.assertTrue(np.any(X_pairs_1 != X_pairs_3), 'different seed, different X pairs')
+
 
 if __name__ == '__main__':
     unittest.main()
