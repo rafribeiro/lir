@@ -4,7 +4,7 @@ with open("README.md") as f:
     long_description = f.read()
 setup(
     name="lir",
-    version="0.1.8",
+    version="0.1.9",
     description="scripts for calculating likelihood ratios",
     long_description=long_description,
     long_description_content_type="text/markdown",
