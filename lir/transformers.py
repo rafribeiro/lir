@@ -51,6 +51,8 @@ class PercentileRankTransformer(sklearn.base.TransformerMixin):
     def fit(self, X, y=None):
         assert len(X.shape) == 2
         ranks_X = rankdata(X, method='max', axis=0)/len(X)
+        # if a feature is a constant int value, interp1d returns nan -> convert to float
+        X = X.astype(float)
         self.rank_functions = [interp1d(X[:, i], ranks_X[:, i], bounds_error=False,
                                         fill_value=(0, 1)) for i in range(X.shape[1])]
         return self
