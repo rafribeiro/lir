@@ -131,7 +131,7 @@ class InstancePairing(sklearn.base.TransformerMixin):
             else:
                 self._ds_limit = rows_same.size * self._max_ratio
 
-        if self._max_ratio and self._ss_limit and self._ds_limit:
+        if self._max_ratio and self._ds_limit:
             n_ss_pairs = max(self._ss_limit, rows_same.size)
             # only if max_ratio is exceeded, change ds_limit
             if n_ss_pairs * self._max_ratio > self._ds_limit:
