@@ -67,7 +67,11 @@ class PercentileRankTransformer(sklearn.base.TransformerMixin):
 
 
 class InstancePairing(sklearn.base.TransformerMixin):
-    def __init__(self, same_source_limit=None, different_source_limit=None, seed=None):
+    def __init__(self,
+                 same_source_limit=None,
+                 different_source_limit=None,
+                 max_ratio=None,
+                 seed=None):
         """
         Creates pairs of instances.
 
@@ -76,18 +80,24 @@ class InstancePairing(sklearn.base.TransformerMixin):
         In other words, `X_paired` contains all possible pairs of feature vectors in `X`, meaning that
         `X_paired.shape[0] == X.shape[0]*X.shape[0]`, except if their number exceeds the values of parameters
         `same_source_limit` and `different_source_limit`, in which case pairs are randomly drawn from the full set of
-        pairs.
+        pairs. Also, a maximum ratio between the same and different source pairs can be specified with 'max_ratio'.
 
-        Not that this transformer may cause performance problems with large datasets, even if the number of instances in
-        the output is limited.
+        Not that this transformer may cause performance problems with large datasets,
+        even if the number of instances in the output is limited.
 
         Parameters:
             - same_source_limit (int or None): the maximum number of same source pairs (None = no limit)
             - different_source_limit (int or None or 'balanced'): the maximum number of different source pairs (None = no limit; 'balanced' = number of same source pairs)
+            - max_ratio (int or None): maximum ratio between same source and different source pairs.
+                Ratio = ds pairs / ss pairs. The number of ds pairs will not exceed max_ratio * ss pairs.
+                If both ratio, same_source_limit and different_source_limit are specified,
+                the number of pairs is chosen such that the max_ratio is preserved and
+                the limits are not exceeded, while taking as many pairs as possible within these constraints.
             - seed (int or None): seed to make pairing reproducible
         """
         self._ss_limit = same_source_limit
         self._ds_limit = different_source_limit
+        self._max_ratio = max_ratio
         self.rng = np.random.default_rng(seed=seed)
 
     def fit(self, X):
@@ -109,10 +119,27 @@ class InstancePairing(sklearn.base.TransformerMixin):
         same_source = y[pairing[:, 0]] == y[pairing[:, 1]]
 
         rows_same = np.where((pairing[:, 0] < pairing[:, 1]) & same_source)[0]  # pairs with different id and same source
+        rows_diff = np.where((pairing[:, 0] < pairing[:, 1]) & ~same_source)[0]  # pairs with different id and different source
+
+        if self._max_ratio and self._ds_limit == 'balanced':
+            self._max_ratio = None
+            raise Warning('Do not provide a max_ratio while different_source_limit = \'balanced\'. Max_ratio is ignored.')
+
+        if self._max_ratio and ~self._ds_limit:
+            if self._ss_limit:
+                self._ds_limit = self._ss_limit * self._max_ratio
+            else:
+                self._ds_limit = rows_same.size * self._max_ratio
+
+        if self._max_ratio and self._ss_limit and self._ds_limit:
+            n_ss_pairs = max(self._ss_limit, rows_same.size)
+            # only if max_ratio is exceeded, change ds_limit
+            if n_ss_pairs * self._max_ratio > self._ds_limit:
+                self._ds_limit = n_ss_pairs * self._max_ratio
+
         if self._ss_limit is not None and rows_same.size > self._ss_limit:
             rows_same = self.rng.choice(rows_same, self._ss_limit, replace=False)
 
-        rows_diff = np.where((pairing[:, 0] < pairing[:, 1]) & ~same_source)[0]  # pairs with different id and different source
         ds_limit = rows_diff.size if self._ds_limit is None else rows_same.size if self._ds_limit == 'balanced' else self._ds_limit
         if rows_diff.size > ds_limit:
             rows_diff = self.rng.choice(rows_diff, ds_limit, replace=False)
