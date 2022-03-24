@@ -2,6 +2,7 @@ import numpy as np
 import sklearn
 from scipy.interpolate import interp1d
 from scipy.stats import rankdata
+import warnings
 
 
 class AbsDiffTransformer(sklearn.base.TransformerMixin):
@@ -123,18 +124,18 @@ class InstancePairing(sklearn.base.TransformerMixin):
 
         if self._max_ratio and self._ds_limit == 'balanced':
             self._max_ratio = None
-            raise Warning('Do not provide a max_ratio while different_source_limit = \'balanced\'. Max_ratio is ignored.')
+            warnings.warn('Do not provide a max_ratio while '
+                          'different_source_limit = \'balanced\'. Max_ratio '
+                          'is ignored.')
 
-        if self._max_ratio and ~self._ds_limit:
-            if self._ss_limit:
-                self._ds_limit = self._ss_limit * self._max_ratio
-            else:
-                self._ds_limit = rows_same.size * self._max_ratio
+        if self._max_ratio and not self._ds_limit:
+            n_ss_pairs = min(x for x in [self._ss_limit, rows_same.size] if x is not None)
+            self._ds_limit = n_ss_pairs * self._max_ratio
 
-        if self._max_ratio and self._ss_limit and self._ds_limit:
-            n_ss_pairs = max(self._ss_limit, rows_same.size)
-            # only if max_ratio is exceeded, change ds_limit
-            if n_ss_pairs * self._max_ratio > self._ds_limit:
+        if self._max_ratio and self._ds_limit:
+            n_ss_pairs = min(x for x in [self._ss_limit, rows_same.size] if x is not None)
+            # if applying max_ratio does not exceed ds_limit, lower ds_limit
+            if n_ss_pairs * self._max_ratio < self._ds_limit:
                 self._ds_limit = n_ss_pairs * self._max_ratio
 
         if self._ss_limit is not None and rows_same.size > self._ss_limit:

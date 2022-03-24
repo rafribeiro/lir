@@ -82,32 +82,72 @@ class TestPercentileRankTransformer(unittest.TestCase):
 
 
 class TestPairing(unittest.TestCase):
-    def test_pairing(self):
-        X = np.arange(30).reshape(10, 3)
-        y = np.concatenate([np.arange(5), np.arange(5)])
+    X = np.arange(30).reshape(10, 3)
+    y = np.concatenate([np.arange(5), np.arange(5)])
 
+    def test_pairing(self):
         pairing = InstancePairing()
-        X_pairs, y_pairs = pairing.transform(X, y)
+        X_pairs, y_pairs = pairing.transform(self.X, self.y)
 
         self.assertEqual(np.sum(y_pairs == 1), 5, 'number of same source pairs')
         self.assertEqual(np.sum(y_pairs == 0), 2*(8+6+4+2), 'number of different source pairs')
 
         pairing = InstancePairing(different_source_limit='balanced')
-        X_pairs, y_pairs = pairing.transform(X, y)
+        X_pairs, y_pairs = pairing.transform(self.X, self.y)
 
         self.assertEqual(np.sum(y_pairs == 1), 5, 'number of same source pairs')
         self.assertEqual(np.sum(y_pairs == 0), 5, 'number of different source pairs')
 
-        self.assertTrue(np.all(pairing.pairing[:,0] != pairing.pairing[:,1]), 'identity in pairs')
+        self.assertTrue(np.all(pairing.pairing[:, 0] != pairing.pairing[:, 1]), 'identity in pairs')
 
+    def test_pairing_ratio(self):
+        # test ratio
+        max_ratio = 7
+        pairing_ratio = InstancePairing(max_ratio=max_ratio)
+        X_pairs, y_pairs = pairing_ratio.transform(self.X, self.y)
+        ratio = np.sum(y_pairs == 0) / np.sum(y_pairs == 1)
+        self.assertEqual(ratio, max_ratio, 'ratio ss ds pairs not correct')
+
+        # if max_ratio exceeds highest possible ratio, all ds pairs are selected
+        max_ratio = 1_000
+        pairing_ratio_max = InstancePairing(max_ratio=max_ratio)
+        X_pairs, y_pairs = pairing_ratio_max.transform(self.X, self.y)
+        ratio = np.sum(y_pairs == 0) / np.sum(y_pairs == 1)
+        self.assertLess(ratio, max_ratio,
+                        'realised ratio should be less or equal than max_ratio')
+        self.assertEqual(np.sum(y_pairs == 0), 2*(8+6+4+2),
+                         'all different source pairs should be selected')
+
+        # test ratio with same_source_limit
+        max_ratio = 5
+        same_source_limit = 3
+        pairing_ratio_ss_lim = InstancePairing(max_ratio=max_ratio,
+                                            same_source_limit=same_source_limit)
+        X_pairs, y_pairs = pairing_ratio_ss_lim.transform(self.X, self.y)
+        ratio = np.sum(y_pairs == 0) / np.sum(y_pairs == 1)
+        self.assertEqual(ratio, max_ratio, 'ratio ss ds pairs not correct')
+        self.assertEqual(same_source_limit, np.sum(y_pairs == 1), 'ss pairs limit')
+
+        # test ratio with different_source_limit
+        max_ratio = 5
+        different_source_limit = 20
+        pairing_ratio_ds_lim = InstancePairing(max_ratio=max_ratio,
+                                               different_source_limit=different_source_limit)
+        X_pairs, y_pairs = pairing_ratio_ds_lim.transform(self.X, self.y)
+        ratio = np.sum(y_pairs == 0) / np.sum(y_pairs == 1)
+        self.assertLessEqual(ratio, max_ratio, 'ratio ss ds pairs not correct')
+        self.assertLessEqual(np.sum(y_pairs == 0), different_source_limit,
+                         'ds pairs limit')
+
+    def test_pairing_seed(self):
         pairing_seed_1 = InstancePairing(different_source_limit='balanced', seed=123)
-        X_pairs_1, y_pairs_1 = pairing_seed_1.transform(X, y)
+        X_pairs_1, y_pairs_1 = pairing_seed_1.transform(self.X, self.y)
 
         pairing_seed_2 = InstancePairing(different_source_limit='balanced', seed=123)
-        X_pairs_2, y_pairs_2 = pairing_seed_2.transform(X, y)
+        X_pairs_2, y_pairs_2 = pairing_seed_2.transform(self.X, self.y)
 
         pairing_seed_3 = InstancePairing(different_source_limit='balanced', seed=456)
-        X_pairs_3, y_pairs_3 = pairing_seed_3.transform(X, y)
+        X_pairs_3, y_pairs_3 = pairing_seed_3.transform(self.X, self.y)
 
         self.assertTrue(np.all(X_pairs_1 == X_pairs_2), 'same seed, same X pairs')
         self.assertTrue(np.any(X_pairs_1 != X_pairs_3), 'different seed, different X pairs')
