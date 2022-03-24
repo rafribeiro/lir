@@ -188,16 +188,27 @@ def pav(lrs, y, add_misleading=0, show_scatter=True, ax=plt):
     ax.set_ylabel("post-calibrated 10log LR")
 
 
-def lr_histogram(lrs, y, bins=20, ax=plt):
+def lr_histogram(lrs, y, bins=20, weighted=True, ax=plt):
     """
     plots the 10log lrs
+
+    Parameters
+    ----------
+    lrs : the likelihood ratios
+    y : a numpy array of labels (0 or 1)
+    bins: number of bins to divide scores into
+    weighted: if y-axis should be weighted for frequency within each class
+    ax: axes to plot figure to
+
     """
     log_lrs = np.log10(lrs)
 
     bins = np.histogram_bin_edges(log_lrs, bins=bins)
     points0, points1 = util.Xy_to_Xn(log_lrs, y)
-    ax.hist(points0, bins=bins, alpha=.25, density=True)
-    ax.hist(points1, bins=bins, alpha=.25, density=True)
+    weights0, weights1 = (np.ones_like(points) / len(points) if weighted else None
+                          for points in (points0, points1))
+    ax.hist(points0, bins=bins, alpha=.25, weights=weights0)
+    ax.hist(points1, bins=bins, alpha=.25, weights=weights1)
     ax.set_xlabel('10log likelihood ratio')
     ax.set_ylabel('count')
 
