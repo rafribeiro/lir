@@ -91,9 +91,9 @@ class InstancePairing(sklearn.base.TransformerMixin):
             - different_source_limit (int or None or 'balanced'): the maximum number of different source pairs (None = no limit; 'balanced' = number of same source pairs)
             - max_ratio (int or None): maximum ratio between same source and different source pairs.
                 Ratio = ds pairs / ss pairs. The number of ds pairs will not exceed max_ratio * ss pairs.
-                If both ratio, same_source_limit and different_source_limit are specified,
+                If both ratio and same_source_limit/different_source_limit are specified,
                 the number of pairs is chosen such that the max_ratio is preserved and
-                the limits are not exceeded, while taking as many pairs as possible within these constraints.
+                the limit(s) are not exceeded, while taking as many pairs as possible within these constraints.
             - seed (int or None): seed to make pairing reproducible
         """
         self._ss_limit = same_source_limit

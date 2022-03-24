@@ -139,6 +139,21 @@ class TestPairing(unittest.TestCase):
         self.assertLessEqual(np.sum(y_pairs == 0), different_source_limit,
                          'ds pairs limit')
 
+        # test ratio with same_source_limit and different_source_limit
+        max_ratio = 5
+        same_source_limit = 9
+        different_source_limit = 100
+        pairing_ratio_ds_lim = InstancePairing(max_ratio=max_ratio,
+                                               same_source_limit=same_source_limit,
+                                               different_source_limit=different_source_limit)
+        X_pairs, y_pairs = pairing_ratio_ds_lim.transform(self.X, self.y)
+        ratio = np.sum(y_pairs == 0) / np.sum(y_pairs == 1)
+        self.assertLessEqual(ratio, max_ratio, 'max_ratio ss and ds pairs exceeded')
+        self.assertLessEqual(np.sum(y_pairs == 1), same_source_limit,
+                             'ss pairs limit')
+        self.assertLessEqual(np.sum(y_pairs == 0), different_source_limit,
+                             'ds pairs limit')
+
     def test_pairing_seed(self):
         pairing_seed_1 = InstancePairing(different_source_limit='balanced', seed=123)
         X_pairs_1, y_pairs_1 = pairing_seed_1.transform(self.X, self.y)
