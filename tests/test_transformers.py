@@ -142,7 +142,7 @@ class TestPairing(unittest.TestCase):
         # test ratio with same_source_limit and different_source_limit
         max_ratio = 5
         same_source_limit = 9
-        different_source_limit = 100
+        different_source_limit = 30
         pairing_ratio_ds_lim = InstancePairing(max_ratio=max_ratio,
                                                same_source_limit=same_source_limit,
                                                different_source_limit=different_source_limit)
