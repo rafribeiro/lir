@@ -92,7 +92,7 @@ class TestPairing(unittest.TestCase):
         self.assertEqual(np.sum(y_pairs == 1), 5, 'number of same source pairs')
         self.assertEqual(np.sum(y_pairs == 0), 2*(8+6+4+2), 'number of different source pairs')
 
-        pairing = InstancePairing(different_source_limit='balanced')
+        pairing = InstancePairing(ratio_limit=1)
         X_pairs, y_pairs = pairing.transform(self.X, self.y)
 
         self.assertEqual(np.sum(y_pairs == 1), 5, 'number of same source pairs')
@@ -102,40 +102,40 @@ class TestPairing(unittest.TestCase):
 
     def test_pairing_ratio(self):
         # test ratio
-        max_ratio = 7
-        pairing_ratio = InstancePairing(max_ratio=max_ratio)
+        ratio_limit = 7
+        pairing_ratio = InstancePairing(ratio_limit=ratio_limit)
         X_pairs, y_pairs = pairing_ratio.transform(self.X, self.y)
         ratio = np.sum(y_pairs == 0) / np.sum(y_pairs == 1)
-        self.assertEqual(ratio, max_ratio, 'ratio ss ds pairs not correct')
+        self.assertEqual(ratio, ratio_limit, 'ratio ss ds pairs not correct')
 
-        # if max_ratio exceeds highest possible ratio, all ds pairs are selected
-        max_ratio = 1_000
-        pairing_ratio_max = InstancePairing(max_ratio=max_ratio)
+        # if ratio_limit exceeds highest possible ratio, all ds pairs are selected
+        ratio_limit = 1_000
+        pairing_ratio_max = InstancePairing(ratio_limit=ratio_limit)
         X_pairs, y_pairs = pairing_ratio_max.transform(self.X, self.y)
         ratio = np.sum(y_pairs == 0) / np.sum(y_pairs == 1)
-        self.assertLess(ratio, max_ratio,
-                        'realised ratio should be less or equal than max_ratio')
+        self.assertLess(ratio, ratio_limit,
+                        'realised ratio should be less or equal than ratio_limit')
         self.assertEqual(np.sum(y_pairs == 0), 2*(8+6+4+2),
                          'all different source pairs should be selected')
 
         # test ratio with same_source_limit
-        max_ratio = 5
+        ratio_limit = 5
         same_source_limit = 3
-        pairing_ratio_ss_lim = InstancePairing(max_ratio=max_ratio,
+        pairing_ratio_ss_lim = InstancePairing(ratio_limit=ratio_limit,
                                             same_source_limit=same_source_limit)
         X_pairs, y_pairs = pairing_ratio_ss_lim.transform(self.X, self.y)
         ratio = np.sum(y_pairs == 0) / np.sum(y_pairs == 1)
-        self.assertEqual(ratio, max_ratio, 'ratio ss ds pairs not correct')
+        self.assertEqual(ratio, ratio_limit, 'ratio ss ds pairs not correct')
         self.assertEqual(same_source_limit, np.sum(y_pairs == 1), 'ss pairs limit')
 
         # test ratio with different_source_limit
-        max_ratio = 5
+        ratio_limit = 5
         different_source_limit = 20
-        pairing_ratio_ds_lim = InstancePairing(max_ratio=max_ratio,
+        pairing_ratio_ds_lim = InstancePairing(ratio_limit=ratio_limit,
                                                different_source_limit=different_source_limit)
         X_pairs, y_pairs = pairing_ratio_ds_lim.transform(self.X, self.y)
         ratio = np.sum(y_pairs == 0) / np.sum(y_pairs == 1)
-        self.assertLessEqual(ratio, max_ratio, 'ratio ss ds pairs not correct')
+        self.assertLessEqual(ratio, ratio_limit, 'ratio ss ds pairs not correct')
         self.assertLessEqual(np.sum(y_pairs == 0), different_source_limit,
                          'ds pairs limit')
 
@@ -143,25 +143,25 @@ class TestPairing(unittest.TestCase):
         max_ratio = 5
         same_source_limit = 9
         different_source_limit = 30
-        pairing_ratio_ds_lim = InstancePairing(max_ratio=max_ratio,
+        pairing_ratio_ds_lim = InstancePairing(ratio_limit=ratio_limit,
                                                same_source_limit=same_source_limit,
                                                different_source_limit=different_source_limit)
         X_pairs, y_pairs = pairing_ratio_ds_lim.transform(self.X, self.y)
         ratio = np.sum(y_pairs == 0) / np.sum(y_pairs == 1)
-        self.assertLessEqual(ratio, max_ratio, 'max_ratio ss and ds pairs exceeded')
+        self.assertLessEqual(ratio, ratio_limit, 'ratio_limit ss and ds pairs exceeded')
         self.assertLessEqual(np.sum(y_pairs == 1), same_source_limit,
                              'ss pairs limit')
         self.assertLessEqual(np.sum(y_pairs == 0), different_source_limit,
                              'ds pairs limit')
 
     def test_pairing_seed(self):
-        pairing_seed_1 = InstancePairing(different_source_limit='balanced', seed=123)
+        pairing_seed_1 = InstancePairing(ratio_limit=1, seed=123)
         X_pairs_1, y_pairs_1 = pairing_seed_1.transform(self.X, self.y)
 
-        pairing_seed_2 = InstancePairing(different_source_limit='balanced', seed=123)
+        pairing_seed_2 = InstancePairing(ratio_limit=1, seed=123)
         X_pairs_2, y_pairs_2 = pairing_seed_2.transform(self.X, self.y)
 
-        pairing_seed_3 = InstancePairing(different_source_limit='balanced', seed=456)
+        pairing_seed_3 = InstancePairing(ratio_limit=1, seed=456)
         X_pairs_3, y_pairs_3 = pairing_seed_3.transform(self.X, self.y)
 
         self.assertTrue(np.all(X_pairs_1 == X_pairs_2), 'same seed, same X pairs')

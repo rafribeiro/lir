@@ -71,7 +71,7 @@ class InstancePairing(sklearn.base.TransformerMixin):
     def __init__(self,
                  same_source_limit=None,
                  different_source_limit=None,
-                 max_ratio=None,
+                 ratio_limit=None,
                  seed=None):
         """
         Creates pairs of instances.
@@ -81,24 +81,24 @@ class InstancePairing(sklearn.base.TransformerMixin):
         In other words, `X_paired` contains all possible pairs of feature vectors in `X`, meaning that
         `X_paired.shape[0] == X.shape[0]*X.shape[0]`, except if their number exceeds the values of parameters
         `same_source_limit` and `different_source_limit`, in which case pairs are randomly drawn from the full set of
-        pairs. Also, a maximum ratio between the same and different source pairs can be specified with 'max_ratio'.
+        pairs. Also, a maximum ratio between the same and different source pairs can be specified with 'ratio_limit'.
 
-        Not that this transformer may cause performance problems with large datasets,
+        Note that this transformer may cause performance problems with large datasets,
         even if the number of instances in the output is limited.
 
         Parameters:
             - same_source_limit (int or None): the maximum number of same source pairs (None = no limit)
             - different_source_limit (int or None or 'balanced'): the maximum number of different source pairs (None = no limit; 'balanced' = number of same source pairs)
-            - max_ratio (int or None): maximum ratio between same source and different source pairs.
-                Ratio = ds pairs / ss pairs. The number of ds pairs will not exceed max_ratio * ss pairs.
+            - ratio_limit (int or None): maximum ratio between same source and different source pairs.
+                Ratio = ds pairs / ss pairs. The number of ds pairs will not exceed ratio_limit * ss pairs.
                 If both ratio and same_source_limit/different_source_limit are specified,
-                the number of pairs is chosen such that the max_ratio is preserved and
+                the number of pairs is chosen such that the ratio_limit is preserved and
                 the limit(s) are not exceeded, while taking as many pairs as possible within these constraints.
             - seed (int or None): seed to make pairing reproducible
         """
         self._ss_limit = same_source_limit
         self._ds_limit = different_source_limit
-        self._max_ratio = max_ratio
+        self._ratio_limit = ratio_limit
         self.rng = np.random.default_rng(seed=seed)
 
     def fit(self, X):
@@ -122,30 +122,24 @@ class InstancePairing(sklearn.base.TransformerMixin):
         rows_same = np.where((pairing[:, 0] < pairing[:, 1]) & same_source)[0]  # pairs with different id and same source
         rows_diff = np.where((pairing[:, 0] < pairing[:, 1]) & ~same_source)[0]  # pairs with different id and different source
 
-        if self._max_ratio and self._ds_limit == 'balanced':
-            self._max_ratio = None
-            warnings.warn('Do not provide a max_ratio while '
-                          'different_source_limit = \'balanced\'. Max_ratio '
-                          'is ignored.')
-
-        if self._max_ratio and not self._ds_limit:
-            n_ss_pairs = min(x for x in [self._ss_limit, rows_same.size] if x is not None)
-            self._ds_limit = n_ss_pairs * self._max_ratio
-
-        if self._max_ratio and self._ds_limit:
-            n_ss_pairs = min(x for x in [self._ss_limit, rows_same.size] if x is not None)
-            # if applying max_ratio does not exceed ds_limit, lower ds_limit
-            if n_ss_pairs * self._max_ratio < self._ds_limit:
-                self._ds_limit = n_ss_pairs * self._max_ratio
-
         if self._ss_limit is not None and rows_same.size > self._ss_limit:
             rows_same = self.rng.choice(rows_same, self._ss_limit, replace=False)
 
-        ds_limit = rows_diff.size if self._ds_limit is None else rows_same.size if self._ds_limit == 'balanced' else self._ds_limit
-        if rows_diff.size > ds_limit:
-            rows_diff = self.rng.choice(rows_diff, ds_limit, replace=False)
+        if self._ds_limit == 'balanced':
+            warnings.warn('The argument \'balanced\' is deprecated. '
+                          'Use ratio_limit instead.', DeprecationWarning, stacklevel=2)
+            self._ds_limit = None
+            self._ratio_limit = 1
 
-        pairing = np.concatenate([pairing[rows_same,:], pairing[rows_diff,:]])
+        n_ds_pairs = min(x for x in [rows_same.size * self._ratio_limit if self._ratio_limit else None,
+                                     self._ds_limit,
+                                     rows_diff.size
+                                     ] if x is not None)
+
+        if n_ds_pairs < rows_diff.size:
+            rows_diff = self.rng.choice(rows_diff, n_ds_pairs, replace=False)
+
+        pairing = np.concatenate([pairing[rows_same, :], pairing[rows_diff, :]])
         self.pairing = pairing
 
         X = np.stack([X[pairing[:, 0]], X[pairing[:, 1]]], axis=2)  # pair instances by adding another dimension
