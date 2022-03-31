@@ -101,6 +101,12 @@ class InstancePairing(sklearn.base.TransformerMixin):
         self._ratio_limit = ratio_limit
         self.rng = np.random.default_rng(seed=seed)
 
+        if self._ds_limit == 'balanced':
+            warnings.warn('The argument \'balanced\' is deprecated. '
+                          'Use ratio_limit instead.', DeprecationWarning, stacklevel=2)
+            self._ds_limit = None
+            self._ratio_limit = 1
+
     def fit(self, X):
         return self
 
@@ -124,12 +130,6 @@ class InstancePairing(sklearn.base.TransformerMixin):
 
         if self._ss_limit is not None and rows_same.size > self._ss_limit:
             rows_same = self.rng.choice(rows_same, self._ss_limit, replace=False)
-
-        if self._ds_limit == 'balanced':
-            warnings.warn('The argument \'balanced\' is deprecated. '
-                          'Use ratio_limit instead.', DeprecationWarning, stacklevel=2)
-            self._ds_limit = None
-            self._ratio_limit = 1
 
         n_ds_pairs = min(x for x in [rows_same.size * self._ratio_limit if self._ratio_limit else None,
                                      self._ds_limit,
