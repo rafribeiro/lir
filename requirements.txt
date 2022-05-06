@@ -1,5 +1,4 @@
-matplotlib
-numpy
-scipy
-scikit-learn
-tqdm
+--editable .
+# The list of dependencies moved to setup.py
+# The editable flag ensures pip install -r requirements.txt still works
+# Changes while developing lir are immediately reflected in the Python environment in editable mode

@@ -1,15 +1,10 @@
-import os
 from setuptools import setup, find_packages
 
-package_dir = os.path.dirname(__file__)
-requirements_file_path = os.path.join(package_dir, "requirements.txt")
-with open(requirements_file_path, "r") as f:
-    packages = [str(f) for f in f.readlines()]
-with open("readme.md") as f:
+with open("README.md") as f:
     long_description = f.read()
 setup(
     name="lir",
-    version="0.1.3",
+    version="0.1.11",
     description="scripts for calculating likelihood ratios",
     long_description=long_description,
     long_description_content_type="text/markdown",
@@ -19,7 +14,7 @@ setup(
     packages=find_packages(),
     setup_requires=["nose"],
     test_suite="nose.collector",
-    install_requires=packages,
+    install_requires=["matplotlib", "numpy", "scipy", "scikit-learn", "tqdm"],
     classifiers=[
         "License :: OSI Approved :: Apache Software License",
         "Programming Language :: Python :: 3 :: Only",

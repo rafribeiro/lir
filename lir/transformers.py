@@ -1,5 +1,8 @@
 import numpy as np
 import sklearn
+from scipy.interpolate import interp1d
+from scipy.stats import rankdata
+import warnings
 
 
 class AbsDiffTransformer(sklearn.base.TransformerMixin):
@@ -21,8 +24,55 @@ class AbsDiffTransformer(sklearn.base.TransformerMixin):
         return np.abs(X[:,:,0] - X[:,:,1])
 
 
+class PercentileRankTransformer(sklearn.base.TransformerMixin):
+    """
+    Compute the percentile rankings of a dataset, relative to another dataset.
+    Rankings are in range [0, 1]. Handling ties: the maximum of the ranks that
+    would have been assigned to all the tied values is assigned to each value.
+
+    To be able to compute the rankings of dataset Z relative to dataset X,
+    'fit' will create a ranking function for each feature, based on X.
+    'transform' will apply ranking of Z based on dataset X.
+
+    Fit:
+    Expects:
+        - X is of shape (n, f) with n = number of measurements,
+        f = number of features
+
+    Transform:
+    Expects:
+        - X is of shape (m, f) with m = number of measurements,
+        f = number of features
+    Returns:
+        - rankings with shape (m, f)
+    """
+    def __init__(self):
+        self.rank_functions = None
+
+    def fit(self, X, y=None):
+        assert len(X.shape) == 2
+        ranks_X = rankdata(X, method='max', axis=0)/len(X)
+        # if a feature is a constant int value, interp1d returns nan -> convert to float
+        X = X.astype(float)
+        self.rank_functions = [interp1d(X[:, i], ranks_X[:, i], bounds_error=False,
+                                        fill_value=(0, 1)) for i in range(X.shape[1])]
+        return self
+
+    def transform(self, X):
+        assert self.rank_functions, "transform() called before fit()"
+        assert len(X.shape) == 2
+        assert X.shape[1] == len(self.rank_functions),\
+            "number of features used for fit() and transform() should be equal"
+        ranks = [self.rank_functions[i](X[:, i]) for i in range(X.shape[1])]
+        return np.stack(ranks, axis=1)
+
+
 class InstancePairing(sklearn.base.TransformerMixin):
-    def __init__(self, same_source_limit=None, different_source_limit=None):
+    def __init__(self,
+                 same_source_limit=None,
+                 different_source_limit=None,
+                 ratio_limit=None,
+                 seed=None):
         """
         Creates pairs of instances.
 
@@ -31,17 +81,31 @@ class InstancePairing(sklearn.base.TransformerMixin):
         In other words, `X_paired` contains all possible pairs of feature vectors in `X`, meaning that
         `X_paired.shape[0] == X.shape[0]*X.shape[0]`, except if their number exceeds the values of parameters
         `same_source_limit` and `different_source_limit`, in which case pairs are randomly drawn from the full set of
-        pairs.
+        pairs. Also, a maximum ratio between the same and different source pairs can be specified with 'ratio_limit'.
 
-        Not that this transformer may cause performance problems with large datasets, even if the number of instances in
-        the output is limited.
+        Note that this transformer may cause performance problems with large datasets,
+        even if the number of instances in the output is limited.
 
         Parameters:
             - same_source_limit (int or None): the maximum number of same source pairs (None = no limit)
             - different_source_limit (int or None or 'balanced'): the maximum number of different source pairs (None = no limit; 'balanced' = number of same source pairs)
+            - ratio_limit (int or None): maximum ratio between same source and different source pairs.
+                Ratio = ds pairs / ss pairs. The number of ds pairs will not exceed ratio_limit * ss pairs.
+                If both ratio and same_source_limit/different_source_limit are specified,
+                the number of pairs is chosen such that the ratio_limit is preserved and
+                the limit(s) are not exceeded, while taking as many pairs as possible within these constraints.
+            - seed (int or None): seed to make pairing reproducible
         """
         self._ss_limit = same_source_limit
         self._ds_limit = different_source_limit
+        self._ratio_limit = ratio_limit
+        self.rng = np.random.default_rng(seed=seed)
+
+        if self._ds_limit == 'balanced':
+            warnings.warn('The argument \'balanced\' is deprecated. '
+                          'Use ratio_limit instead.', DeprecationWarning, stacklevel=2)
+            self._ds_limit = None
+            self._ratio_limit = 1
 
     def fit(self, X):
         return self
@@ -62,15 +126,20 @@ class InstancePairing(sklearn.base.TransformerMixin):
         same_source = y[pairing[:, 0]] == y[pairing[:, 1]]
 
         rows_same = np.where((pairing[:, 0] < pairing[:, 1]) & same_source)[0]  # pairs with different id and same source
-        if self._ss_limit is not None and rows_same.size > self._ss_limit:
-            rows_same = np.random.choice(rows_same, self._ss_limit, replace=False)
-
         rows_diff = np.where((pairing[:, 0] < pairing[:, 1]) & ~same_source)[0]  # pairs with different id and different source
-        ds_limit = rows_diff.size if self._ds_limit is None else rows_same.size if self._ds_limit == 'balanced' else self._ds_limit
-        if rows_diff.size > ds_limit:
-            rows_diff = np.random.choice(rows_diff, ds_limit, replace=False)
 
-        pairing = np.concatenate([pairing[rows_same,:], pairing[rows_diff,:]])
+        if self._ss_limit is not None and rows_same.size > self._ss_limit:
+            rows_same = self.rng.choice(rows_same, self._ss_limit, replace=False)
+
+        n_ds_pairs = min(x for x in [rows_same.size * self._ratio_limit if self._ratio_limit else None,
+                                     self._ds_limit,
+                                     rows_diff.size
+                                     ] if x is not None)
+
+        if n_ds_pairs < rows_diff.size:
+            rows_diff = self.rng.choice(rows_diff, n_ds_pairs, replace=False)
+
+        pairing = np.concatenate([pairing[rows_same, :], pairing[rows_diff, :]])
         self.pairing = pairing
 
         X = np.stack([X[pairing[:, 0]], X[pairing[:, 1]]], axis=2)  # pair instances by adding another dimension
