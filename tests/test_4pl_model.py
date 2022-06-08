@@ -1,12 +1,13 @@
 import csv
+import os
 import unittest
-from lir.util import to_probability, to_log_odds, to_odds
+
 import numpy as np
-import lir
-from lir.metrics import devpav
-from lir.calibration import FourParameterLogisticCalibrator
 from sklearn.linear_model import LogisticRegression
 
+from lir.calibration import FourParameterLogisticCalibrator
+from lir.metrics import devpav
+from lir.util import to_probability, to_log_odds
 
 
 def read_data(path):
@@ -18,8 +19,9 @@ def read_data(path):
 
 
 class TestFourParameterLogisticCalibrator(unittest.TestCase):
-    X_diff = read_data('data/LRsdifferentnormalLLRdistribmu_s=1N_ss=300.csv')
-    X_same = read_data('data/LRssamenormalLLRdistribmu_s=1N_ss=300.csv')
+    dirname = os.path.dirname(__file__)
+    X_diff = read_data(os.path.join(dirname, 'data/LRsdifferentnormalLLRdistribmu_s=1N_ss=300.csv'))
+    X_same = read_data(os.path.join(dirname, 'data/LRssamenormalLLRdistribmu_s=1N_ss=300.csv'))
 
     def test_compare_to_logistic(self):
         X = np.concatenate([self.X_diff, self.X_same])
@@ -41,35 +43,33 @@ class TestFourParameterLogisticCalibrator(unittest.TestCase):
         four_pl_model = FourParameterLogisticCalibrator()
         four_pl_model.fit(X, y)
 
-        probs = four_pl_model.transform(X)[:, 1]
-        odds = (to_odds(probs))
+        odds = four_pl_model.transform(X)
         np.testing.assert_almost_equal(devpav(odds, y), 0.12029952948152635, decimal=5)
 
     def test_pl_0_is_1(self):
-        X_same = np.concatenate([self.X_same, [1, 1-10**-10]])
-        X_diff = np.concatenate([self.X_diff, [1, 1-10**-10]])
+        X_same = np.concatenate([self.X_same, [1, 1 - 10 ** -10]])
+        X_diff = np.concatenate([self.X_diff, [1, 1 - 10 ** -10]])
         y = np.concatenate([np.zeros(len(X_diff)), np.ones(len(X_same))])
         X = np.concatenate([X_diff, X_same])
 
         four_pl_model = FourParameterLogisticCalibrator()
         four_pl_model.fit(X, y)
 
-        probs = four_pl_model.transform(X)[:, 1]
-        odds = (to_odds(probs))
+        odds = four_pl_model.transform(X)
         np.testing.assert_almost_equal(devpav(odds, y), 0.15273304557837525, decimal=5)
 
     def test_pl_0_is_1_and_pl_1_is_0(self):
-        X_same = np.concatenate([self.X_same, [0, 10**-10, 1, 1-10**-10]])
-        X_diff = np.concatenate([self.X_diff, [0, 10**-10, 1, 1-10**-10]])
+        X_same = np.concatenate([self.X_same, [0, 10 ** -10, 1, 1 - 10 ** -10]])
+        X_diff = np.concatenate([self.X_diff, [0, 10 ** -10, 1, 1 - 10 ** -10]])
         y = np.concatenate([np.zeros(len(X_diff)), np.ones(len(X_same))])
         X = np.concatenate([X_diff, X_same])
 
         four_pl_model = FourParameterLogisticCalibrator()
         four_pl_model.fit(X, y)
 
-        probs = four_pl_model.transform(X)[:, 1]
-        odds = (to_odds(probs))
+        odds = four_pl_model.transform(X)
         np.testing.assert_almost_equal(devpav(odds, y), 0.10475112893952891, decimal=5)
+
 
 if __name__ == '__main__':
     unittest.main()

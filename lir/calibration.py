@@ -643,11 +643,11 @@ class FourParameterLogisticCalibrator:
         self.coef_ = result.x
 
     def transform(self, X):
+        """
+        Returns the odds ratio.
+        """
         X = to_log_odds(X)
-        proba = self.model(X, *self.coef_)
-        result = np.stack([1-proba, proba], axis=1)
-        # TODO this should be odds
-        return result
+        return to_odds(self.model(X, *self.coef_))
 
     @staticmethod
     def _four_pl_model(s, a, b, c, d):
