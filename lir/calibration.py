@@ -620,17 +620,21 @@ class FourParameterLogisticCalibrator:
             # then define 4PL-logistic model
             self.model = self._four_pl_model
             bounds.extend([(10**-10, 1-10**-10), (10**-10, np.inf)])
+            LOG.warning("There were -Inf lrs for the same source samples and Inf lrs for the different source samples "
+                        ", therefore a 4pl calibrator was fitted.")
         elif estimate_c:
             # then define 3-PL logistic model. Set 'd' to 0
             self.model = partial(self._four_pl_model, d=0)
             # use very small values since limits result in -inf llh
             bounds.append((10**-10, 1-10**-10))
+            LOG.warning("There were -Inf lrs for the same source samples, therefore a 3pl calibrator was fitted.")
         elif estimate_d:
             # then define 3-PL logistic model. Set 'c' to 0
             # use bind since 'c' is intermediate variable. In that case partial does not work.
             self.model = Bind(self._four_pl_model, ..., ..., ..., 0, ...)
             # use very small value since limits result in -inf llh
             bounds.append((10**-10, np.inf))
+            LOG.warning("There were Inf lrs for the different source samples, therefore a 3pl calibrator was fitted.")
         else:
             # define ordinary logistic model (no regularization, so maximum likelihood estimates)
             self.model = partial(self._four_pl_model, c=0, d=0)
@@ -639,6 +643,8 @@ class FourParameterLogisticCalibrator:
 
         result = minimize(objective_function, np.array([.1] * (2 + estimate_d + estimate_c)),
                           bounds=bounds)
+        if not result.success:
+            raise Exception("The optimizer did not converge for the calibrator, please check your data.")
         assert result.success
         self.coef_ = result.x
 
