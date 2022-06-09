@@ -608,8 +608,8 @@ class FourParameterLogisticCalibrator:
         self.coef_ = None
 
     def fit(self, X, y):
-        # check for negative inf for '1'-labels or inf for '0'-labels
         X = to_log_odds(X)
+        # check for negative inf for '1'-labels or inf for '0'-labels
         estimate_c = np.any(np.isneginf(X[y == 1]))
         estimate_d = np.any(np.isposinf(X[y == 0]))
 

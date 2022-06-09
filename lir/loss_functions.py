@@ -2,7 +2,7 @@ import numpy as np
 
 def negative_log_likelihood_balanced(X, y, model, params):
     """
-    calculates neg_llh of probabiliistic binary classifier.
+    calculates neg_llh of probabilistic binary classifier.
     The llh is balanced in the sense that the total weight of '1'-labels is equal to the total weight of '0'-labels.
 
     inputs:
