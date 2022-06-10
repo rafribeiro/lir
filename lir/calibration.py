@@ -663,6 +663,7 @@ class FourParameterLogisticCalibrator:
                 a,b,c,d,: floats defining 4PL model.
                     a and b are the familiar logistic parameters.
                     c and d respectively floor and ceil the posterior probability
+                        the flour probability is c and the ceiling probability is c + (1 - c)/(1 + d)
         output:
                 p: n * 1 np.array. Posterior probabilities of succes given each s (and a,b,c,d)
         """
