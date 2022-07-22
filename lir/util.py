@@ -1,8 +1,8 @@
 import collections
 import inspect
-import warnings
-
 import numpy as np
+import warnings
+from functools import partial
 
 LR = collections.namedtuple('LR', ['lr', 'p0', 'p1'])
 
@@ -78,3 +78,16 @@ def ln_to_log10(ln_data):
 
 def warn_deprecated():
     warnings.warn(f'the function `{inspect.stack()[1].function}` is no longer maintained; please check documentation for alternatives')
+
+
+class Bind(partial):
+    """
+    An improved version of partial which accepts Ellipsis (...) as a placeholder.
+    Can be used to fix parameters not at the end of the list of parameters (which is a limitation of partial).
+    """
+
+    def __call__(self, *args, **keywords):
+        keywords = {**self.keywords, **keywords}
+        iargs = iter(args)
+        args = (next(iargs) if arg is ... else arg for arg in self.args)
+        return self.func(*args, *iargs, **keywords)

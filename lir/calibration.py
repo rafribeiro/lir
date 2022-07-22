@@ -1,19 +1,21 @@
 import logging
 import math
-import warnings
-from typing import Optional, Tuple, Union
-
 import numpy as np
+import warnings
+from functools import partial
+from scipy.optimize import minimize
 from sklearn.base import BaseEstimator
 from sklearn.base import TransformerMixin
 from sklearn.exceptions import NotFittedError
 from sklearn.linear_model import LogisticRegression
 from sklearn.mixture import GaussianMixture
 from sklearn.neighbors import KernelDensity
+from typing import Optional, Tuple, Union
 
 from .bayeserror import elub
+from .loss_functions import negative_log_likelihood_balanced
 from .regression import IsotonicRegressionInf
-from .util import Xy_to_Xn, to_odds, to_log_odds, ln_to_log10
+from .util import Xy_to_Xn, to_odds, to_log_odds, ln_to_log10, Bind
 
 LOG = logging.getLogger(__name__)
 
@@ -598,6 +600,78 @@ class IsotonicCalibrator(BaseEstimator, TransformerMixin):
         self.p1 = self._ir.transform(X)
         self.p0 = 1 - self.p1
         return to_odds(self.p1)
+
+
+class FourParameterLogisticCalibrator:
+    """
+    Calculates a likelihood ratio of a score value, provided it is from one of two distributions.
+    Depending on the training data, a 2-, 3- or 4-parameter logistic model is used.
+    """
+    def __int__(self):
+        self.coef_ = None
+
+    def fit(self, X, y):
+        X = to_log_odds(X)
+        # check for negative inf for '1'-labels or inf for '0'-labels
+        estimate_c = np.any(np.isneginf(X[y == 1]))
+        estimate_d = np.any(np.isposinf(X[y == 0]))
+
+        # define bounds for a and b
+        bounds = [(-np.inf, np.inf), (-np.inf, np.inf)]
+
+        if estimate_c and estimate_d:
+            # then define 4PL-logistic model
+            self.model = self._four_pl_model
+            bounds.extend([(10**-10, 1-10**-10), (10**-10, np.inf)])
+            LOG.warning("There were -Inf lrs for the same source samples and Inf lrs for the different source samples "
+                        ", therefore a 4pl calibrator was fitted.")
+        elif estimate_c:
+            # then define 3-PL logistic model. Set 'd' to 0
+            self.model = partial(self._four_pl_model, d=0)
+            # use very small values since limits result in -inf llh
+            bounds.append((10**-10, 1-10**-10))
+            LOG.warning("There were -Inf lrs for the same source samples, therefore a 3pl calibrator was fitted.")
+        elif estimate_d:
+            # then define 3-PL logistic model. Set 'c' to 0
+            # use bind since 'c' is intermediate variable. In that case partial does not work.
+            self.model = Bind(self._four_pl_model, ..., ..., ..., 0, ...)
+            # use very small value since limits result in -inf llh
+            bounds.append((10**-10, np.inf))
+            LOG.warning("There were Inf lrs for the different source samples, therefore a 3pl calibrator was fitted.")
+        else:
+            # define ordinary logistic model (no regularization, so maximum likelihood estimates)
+            self.model = partial(self._four_pl_model, c=0, d=0)
+        # define function to minimize
+        objective_function = partial(negative_log_likelihood_balanced, X, y, self.model)
+
+        result = minimize(objective_function, np.array([.1] * (2 + estimate_d + estimate_c)),
+                          bounds=bounds)
+        if not result.success:
+            raise Exception("The optimizer did not converge for the calibrator, please check your data.")
+        assert result.success
+        self.coef_ = result.x
+
+    def transform(self, X):
+        """
+        Returns the odds ratio.
+        """
+        X = to_log_odds(X)
+        return to_odds(self.model(X, *self.coef_))
+
+    @staticmethod
+    def _four_pl_model(s, a, b, c, d):
+        """
+        inputs:
+                s: n * 1 np.array of scores
+                a,b,c,d,: floats defining 4PL model.
+                    a and b are the familiar logistic parameters.
+                    c and d respectively floor and ceil the posterior probability
+                        the flour probability is c and the ceiling probability is c + (1 - c)/(1 + d)
+        output:
+                p: n * 1 np.array. Posterior probabilities of succes given each s (and a,b,c,d)
+        """
+        p = c + ((1 - c) / (1 + d)) * 1 / (1 + np.exp(-a * s - b))
+        return p
 
 
 class DummyCalibrator(BaseEstimator, TransformerMixin):
