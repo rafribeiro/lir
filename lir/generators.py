@@ -32,21 +32,21 @@ class NormalGenerator:
         :param n1: number of LRs from class 1 (H1)
         :returns: an array of LRs and an array of labels (value 0 or 1)
         """
-        return self._return_scores_or_lrs(n0, n1, prob=False)
+        return self._return_probabilities_or_lrs(n0, n1, prob=False)
 
-    def sample_scores(self, n0, n1):
+    def sample_probabilities(self, n0, n1):
         """
-        Sample scores in the form P(x|H1) for samples from the H2 distribution and the H1 distribution.
+        Sample probabilities in the form P(H1) for samples from the H2 distribution and the H1 distribution.
 
         :param n0: Number of scores from class 0 (H2)
         :param n1: Number of scores from class 1 (H1)
         :return: an array of scores and an array of labels. The scores represent P(H1|x)
         """
-        return self._return_scores_or_lrs(n0, n1, prob=True)
+        return self._return_probabilities_or_lrs(n0, n1, prob=True)
 
-    def _return_scores_or_lrs(self, n0, n1, prob=True):
+    def _return_probabilities_or_lrs(self, n0, n1, prob=True):
         """
-        Sample scores from both distributions and return either the scores  or the probabilities.
+        Sample probabilities  from both distributions and return either the probabilities  or the o LRs.
         """
         X = np.concatenate([np.random.normal(loc=self.mu0, scale=self.sigma0, size=n0),
                             np.random.normal(loc=self.mu1, scale=self.sigma1, size=n1)])
