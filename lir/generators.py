@@ -2,6 +2,7 @@
 Dataset generators.
 """
 import numpy as np
+from scipy import stats
 
 
 class NormalGenerator:
@@ -50,19 +51,14 @@ class NormalGenerator:
         X = np.concatenate([np.random.normal(loc=self.mu0, scale=self.sigma0, size=n0),
                             np.random.normal(loc=self.mu1, scale=self.sigma1, size=n1)])
 
-        p0 = NormalGenerator._get_probability(X, self.mu0, self.sigma0)
-        p1 = NormalGenerator._get_probability(X, self.mu1, self.sigma1)
+        p0 = stats.norm.pdf(X, self.mu0, self.sigma0)
+        p1 = stats.norm.pdf(X, self.mu1, self.sigma1)
 
         y = np.concatenate([np.zeros(n0), np.ones(n1)])
 
         odds = p1 / p0
 
         return (odds / (1+odds), y) if prob else (odds, y)
-
-    @staticmethod
-    def _get_probability(X, mu, sigma):
-        return np.exp(-np.power(X - mu, 2) / (2 * sigma * sigma)) / np.sqrt(2 * np.pi * sigma * sigma)
-
 
 
 class RandomFlipper:
