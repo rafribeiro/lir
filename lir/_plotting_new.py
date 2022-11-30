@@ -219,13 +219,14 @@ def tippett(lrs, y, ax=plt):
     """
     log_lrs = np.log10(lrs)
 
-    xplot = np.linspace(np.min(log_lrs), np.max(log_lrs), 100)
     lr_0, lr_1 = util.Xy_to_Xn(log_lrs, y)
-    perc0 = (sum(i >= xplot for i in lr_0) / len(lr_0)) * 100
-    perc1 = (sum(i >= xplot for i in lr_1) / len(lr_1)) * 100
+    xplot0 = np.linspace(np.min(lr_0), np.max(lr_0), 100)
+    xplot1 = np.linspace(np.min(lr_1), np.max(lr_1), 100)
+    perc0 = (sum(i >= xplot0 for i in lr_0) / len(lr_0)) * 100
+    perc1 = (sum(i >= xplot1 for i in lr_1) / len(lr_1)) * 100
 
-    ax.plot(xplot, perc1, color='b', label='LRs given $\mathregular{H_1}$')
-    ax.plot(xplot, perc0, color='r', label='LRs given $\mathregular{H_2}$')
+    ax.plot(xplot1, perc1, color='b', label='LRs given $\mathregular{H_1}$')
+    ax.plot(xplot0, perc0, color='r', label='LRs given $\mathregular{H_2}$')
     ax.axvline(x=0, color='k', linestyle='--')
     ax.set_xlabel('10log likelihood ratio')
     ax.set_ylabel('Cumulative proportion')
