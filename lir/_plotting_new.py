@@ -213,9 +213,20 @@ def lr_histogram(lrs, y, bins=20, weighted=True, ax=plt):
     ax.set_ylabel('count')
 
 
-def tippett(lrs, y, ax=plt):
+def tippett(lrs, y, plot_type=1, ax=plt):
     """
-    plots the 10log lrs
+    plots empirical cumulative distribution functions of same-source and
+        different-sources lrs
+    
+    Parameters
+    ----------
+    lrs : the likelihood ratios
+    y : a numpy array of labels (0 or 1)
+    plot_type : an integer, must be either 1 or 2.
+        In type 1 both curves show proportion of lrs greater than or equal to the
+        x-axis value, while in type 2 the curve for same-source shows the
+        proportion of lrs smaller than or equal to the x-axis value.
+    ax: axes to plot figure to
     """
     log_lrs = np.log10(lrs)
 
@@ -223,8 +234,13 @@ def tippett(lrs, y, ax=plt):
     xplot0 = np.linspace(np.min(lr_0), np.max(lr_0), 100)
     xplot1 = np.linspace(np.min(lr_1), np.max(lr_1), 100)
     perc0 = (sum(i >= xplot0 for i in lr_0) / len(lr_0)) * 100
-    perc1 = (sum(i >= xplot1 for i in lr_1) / len(lr_1)) * 100
-
+    if plot_type==1:
+        perc1 = (sum(i >= xplot1 for i in lr_1) / len(lr_1)) * 100
+    elif plot_type==2:
+        perc1 = (sum(i <= xplot1 for i in lr_1) / len(lr_1)) * 100
+    else:
+        raise ValueError("plot_type must be either 1 or 2.")
+    
     ax.plot(xplot1, perc1, color='b', label='LRs given $\mathregular{H_1}$')
     ax.plot(xplot0, perc0, color='r', label='LRs given $\mathregular{H_2}$')
     ax.axvline(x=0, color='k', linestyle='--')
